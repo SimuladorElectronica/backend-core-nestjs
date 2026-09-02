@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(STUDENT)
+  createdAt    DateTime @default(now())
+
+  projects    Project[]
+  guides      Guide[]      @relation("TeacherGuides")
+  submissions Submission[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String  @id @default(uuid())
+  shareSlug   String  @unique // Ej: "a9f3b2" para links de compartir en 1 clic
+  title       String  @default("Circuito sin título")
+  description String? @db.Text
+  circuitData Json // Grafo de componentes 2D, coordenadas, cables y propiedades
+  code        String  @db.Text // Código C++
+  isPublic    Boolean @default(true)
+
+  userId String? // Nullable para permitir guardado anónimo sin registro
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  starterForGuides Guide[]      @relation("StarterProject")
+  submissions      Submission[]
+
+  @@map("projects")
+}
+
+model Guide {
+  id           String @id @default(uuid())
+  title        String
+  instructions String @db.Text
+
+  teacherId String
+  teacher   User   @relation("TeacherGuides", fields: [teacherId], references: [id])
+
+  starterProjectId String
+  starterProject   Project @relation("StarterProject", fields: [starterProjectId], references: [id])
+
+  createdAt   DateTime     @default(now())
+  submissions Submission[]
+
+  @@map("guides")
+}
+
+model Submission {
+  id      String @id @default(uuid())
+  guideId String
+  guide   Guide  @relation(fields: [guideId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation(fields: [studentId], references: [id])
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  submittedAt DateTime @default(now())
+
+  @@map("submissions")
+}
+
+model CuratedLibrary {
+  id          String @id @default(uuid())
+  name        String @unique // Ej: "LiquidCrystal_I2C"
+  headerFile  String // Ej: "LiquidCrystal_I2C.h"
+  author      String
+  description String
+  version     String
+
+  @@map("curated_libraries")
+}

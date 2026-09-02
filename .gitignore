@@ -1,0 +1,90 @@
+# ==========================================
+# Dependencias
+# ==========================================
+node_modules/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+
+# ==========================================
+# Compilación y Build (NestJS / TypeScript)
+# ==========================================
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# ==========================================
+# Variables de entorno y Secretos
+# ==========================================
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+.env.*.local
+!.env.example
+!.env.template
+
+# ==========================================
+# Pruebas y Cobertura (Vitest)
+# ==========================================
+coverage/
+.vitest/
+*.lcov
+
+# ==========================================
+# Prisma y Bases de datos locales
+# ==========================================
+*.db
+*.sqlite
+*.sqlite-val
+*.sqlite-journal
+prisma/db/
+prisma/*.db
+
+# ==========================================
+# Caché y Archivos temporales (Oxlint, Prettier, Vite)
+# ==========================================
+.cache/
+.npm/
+.eslintcache
+.oxlintcache
+.prettiercache
+.vite/
+*.tmp
+*.temp
+
+# ==========================================
+# Logs
+# ==========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==========================================
+# Sistema Operativo y Editores / IDEs
+# ==========================================
+.DS_Store
+Thumbs.db
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Ajustes de VSCode (mantiene configuraciones útiles de equipo, ignora el resto)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
