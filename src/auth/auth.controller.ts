@@ -4,7 +4,7 @@ import { Request } from 'express';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
-import { JwtAuthGuard } from '@/guards/jwt-auth.guard.js';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
 
 interface AuthenticatedRequest extends Request {
   user: {
