@@ -1,3 +1,10 @@
+<!-- calidad:inicio -->
+![Calidad](https://img.shields.io/badge/Calidad-43%2F100-orange) ![Cumple](https://img.shields.io/badge/Cumple-11%2F15-yellow) ![Aprobado](https://img.shields.io/badge/Aprobado-NO-red)
+
+**Calidad de servicios (heurístico):** índice **43/100** · cumple **11/15** · aprobado **NO** · capas **0**
+`SEC 0 · SQL 0 · DBG 1 · duplicación 10.3% · endpoints 1 · tests 2`
+<!-- calidad:fin -->
+
 # Perímetro del Proyecto: MVP Simulador ESP32
 
 ## Límites del Sistema
