@@ -1,8 +1,8 @@
 <!-- calidad:inicio -->
-![Calidad](https://img.shields.io/badge/Calidad-43%2F100-orange) ![Cumple](https://img.shields.io/badge/Cumple-11%2F15-yellow) ![Aprobado](https://img.shields.io/badge/Aprobado-NO-red)
+![Calidad](https://img.shields.io/badge/Calidad-33%2F100-red) ![Aprobado](https://img.shields.io/badge/Aprobado-NO-red) ![Cumple](https://img.shields.io/badge/Cumple-10%2F15-yellow) ![Duplicación](https://img.shields.io/badge/Duplicaci%C3%B3n-8.4%25-green) ![SEC](https://img.shields.io/badge/SEC-0-green) ![SQL](https://img.shields.io/badge/SQL-0-green) ![DBG](https://img.shields.io/badge/DBG-0-green) ![Capas](https://img.shields.io/badge/Capas-0-red) ![Tests](https://img.shields.io/badge/Tests-2-orange) ![EP](https://img.shields.io/badge/EP-4-orange)
 
-**Calidad de servicios (heurístico):** índice **43/100** · cumple **11/15** · aprobado **NO** · capas **0**
-`SEC 0 · SQL 0 · DBG 1 · duplicación 10.3% · endpoints 1 · tests 2`
+**Calidad de servicios (heurístico):** índice **33/100** · cumple **10/15** · aprobado **NO** · capas **0**
+Detalle completo en [`docs/EVALUACION.md`](docs/EVALUACION.md).
 <!-- calidad:fin -->
 
 # Perímetro del Proyecto: MVP Simulador ESP32
