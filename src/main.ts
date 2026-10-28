@@ -10,7 +10,9 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Simulador Web API')
-    .setDescription('Backend 1 - Servicio de Autenticación y Usuarios')
+    .setDescription(
+      'Backend - Autenticación, proyectos de esquemáticos (JSONB + shareSlug) y librerías C++ curadas',
+    )
     .setVersion('1.0')
     .addBearerAuth(
       {
@@ -22,6 +24,15 @@ async function bootstrap() {
         in: 'header',
       },
       'bearer', // Este nombre debe coincidir con el utilizado en @ApiBearerAuth()
+    )
+    .addTag('Auth', 'Registro e inicio de sesión con JWT')
+    .addTag(
+      'Projects',
+      'Guardado de esquemáticos en JSONB y enlaces de compartir (shareSlug)',
+    )
+    .addTag(
+      'Libraries',
+      'Librerías C++ curadas (lectura pública, escritura solo rol TEACHER)',
     )
     .build();
 
