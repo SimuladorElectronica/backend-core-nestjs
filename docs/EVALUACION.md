@@ -10,11 +10,13 @@
 | Aspecto | Resultado |
 |---|---|
 | Tipo de proyecto | backend |
-| Índice de calidad de servicios | **33/100** (mínimo 60) |
+| Índice de calidad de servicios | **35/100** (mínimo 60) |
 | Criterios cumplidos | **10/15** |
 | Aprobado (semáforo) | **NO** |
 | Código (LOC) | 312 |
 | Archivos de código | 17 |
+| Tests (archivos) | 2 |
+| Cobertura de líneas | 11.7% (mínimo 80%) |
 | Capas detectadas | ninguna |
 
 > **Aprobado** exige cumplir **todos** los criterios del semáforo. No es una nota: sirve para ordenar y priorizar la revisión.
@@ -45,7 +47,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Un resumen numérico (0-100) que combina todas las señales y métricas del análisis, con topes duros por duplicación.
 - **Por qué importa:** Ordena y prioriza la revisión: un índice bajo indica varias señales que conviene mirar juntas.
-- **Tu resultado:** índice **33/100** _(mínimo 60)_
+- **Tu resultado:** índice **35/100** _(mínimo 60)_
 - **Para investigar la causa:**
     - ¿En qué momento del proyecto se concentraron los problemas (arranque, integración de partes, cierre)?
     - ¿El índice bajó por muchas señales chicas o por una o dos graves?
@@ -55,7 +57,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Porcentaje de bloques de código repetidos (similitud) en el repositorio.
 - **Por qué importa:** Cada copia se mantiene por separado: un arreglo hay que repetirlo y los defectos se multiplican.
-- **Tu resultado:** **8.4%** de duplicación _(máximo 15%)_
+- **Tu resultado:** **6.5%** de duplicación _(máximo 15%)_
 
 ### 3. Secretos hardcodeados (SEC) — OK
 
@@ -131,15 +133,15 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
     - ¿El acceso a datos ocurre desde lugares que no son los responsables?
     - ¿Se puede cambiar una parte sin tocar las demás?
 
-### 14. Tests automatizados (Tests) — A REVISAR
+### 14. Cobertura de tests (Cob) — A REVISAR
 
-- **Qué mide:** Cantidad de archivos de test separados del código.
-- **Por qué importa:** Sin tests no hay red de seguridad: un cambio puede romper algo sin que se note hasta la demo.
-- **Tu resultado:** **2** archivo(s) de test _(mínimo 5)_
+- **Qué mide:** Porcentaje de líneas de código ejecutadas por la suite de tests (cobertura real, no cantidad de archivos de test).
+- **Por qué importa:** Un test que existe pero no ejecuta el código no protege de nada: la cobertura muestra qué partes quedan sin verificar.
+- **Tu resultado:** **11.7%** de líneas cubiertas _(mínimo 80% de líneas)_
 - **Para investigar la causa:**
-    - ¿Se planificó escribir tests, o quedó siempre al final?
-    - ¿Qué parte del sistema es más riesgosa de tocar y por qué no está cubierta?
-    - ¿Se sabe qué se rompería si algo cambiara?
+    - ¿Qué módulos o ramas del sistema nunca se ejecutan en los tests?
+    - ¿Los tests prueban el camino principal y los errores, o solo el caso feliz?
+    - ¿La suite se puede correr en CI sin base de datos ni servicios externos?
 
 ### 15. Endpoints del backend (EP) — A REVISAR
 
@@ -157,10 +159,10 @@ Criterios que hoy están en rojo y qué habría que cambiar para alcanzar el niv
 
 | Criterio | Resultado actual | Meta | Qué arreglar |
 |---|---|---|---|
-| Índice de calidad de servicios (indice) | índice **33/100** | mínimo 60 | Subir el índice a ≥60 corrigiendo primero las señales de más peso: duplicación, secretos, SQL y capas. |
+| Índice de calidad de servicios (indice) | índice **35/100** | mínimo 60 | Subir el índice a ≥60 corrigiendo primero las señales de más peso: duplicación, secretos, SQL y capas. |
 | Separación en capas (capas) | **0** capa(s) detectada(s): ninguna | mínimo 2 capas (a partir de 150 LOC) | Separar el código en al menos 2 capas con responsabilidades claras (rutas/controladores, servicios, modelos o acceso a datos). |
 | Acoplamiento alto (Acop) | **2** unidad(es) con acoplamiento alto | máximo 2 por 1000 LOC | Reducir dependencias directas entre unidades; ≤2 por 1000 LOC. |
-| Tests automatizados (Tests) | **2** archivo(s) de test | mínimo 5 | Agregar tests de los flujos principales hasta llegar a 5 archivos. |
+| Cobertura de tests (Cob) | **11.7%** de líneas cubiertas | mínimo 80% de líneas | Publicar cobertura (o correr la suite con coverage) y cubrir ≥80% de líneas. |
 | Endpoints del backend (EP) | **4** endpoint(s) | mínimo 10 | Exponer las operaciones del contrato que faltan hasta llegar a 10 endpoints. |
 
 > Empezá por las señales de seguridad (**SEC**, **SQL**) y por la **duplicación**: son las que más pesan en el índice y las más rápidas de verificar a ojo.
