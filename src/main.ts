@@ -11,7 +11,8 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('Simulador Web API')
     .setDescription(
-      'Backend - Autenticación, proyectos de esquemáticos (JSONB + shareSlug) y librerías C++ curadas',
+      'Backend - Autenticación, proyectos de esquemáticos (JSONB + shareSlug), ' +
+        'librerías C++ curadas, guías didácticas y entregas de alumnos',
     )
     .setVersion('1.0')
     .addBearerAuth(
@@ -33,6 +34,14 @@ async function bootstrap() {
     .addTag(
       'Libraries',
       'Librerías C++ curadas (lectura pública, escritura solo rol TEACHER)',
+    )
+    .addTag(
+      'Guides',
+      'Guías didácticas (lectura pública, creación solo rol TEACHER)',
+    )
+    .addTag(
+      'Submissions',
+      'Entregas de proyectos de alumnos a una guía (requiere sesión)',
     )
     .build();
 
