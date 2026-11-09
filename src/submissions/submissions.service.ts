@@ -3,9 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateSubmissionDto } from './dto/create-submission.dto.js';
+import { UpdateSubmissionDto } from './dto/update-submission.dto.js';
 
 const SUBMISSION_INCLUDE = {
   guide: { select: { id: true, title: true } },
@@ -26,21 +27,7 @@ export class SubmissionsService {
       throw new NotFoundException(`No existe la guía "${dto.guideId}"`);
     }
 
-    const project = await this.prisma.project.findUnique({
-      where: { id: dto.projectId },
-      select: { id: true, userId: true },
-    });
-
-    if (!project) {
-      throw new NotFoundException(`No existe el proyecto "${dto.projectId}"`);
-    }
-
-    // Solo proyectos propios: los anónimos (userId null) y ajenos se rechazan
-    if (project.userId !== studentId) {
-      throw new ForbiddenException(
-        'El proyecto no te pertenece: solo podés entregar proyectos propios',
-      );
-    }
+    await this.assertProjectBelongsTo(dto.projectId, studentId);
 
     return this.prisma.submission.create({
       data: {
@@ -50,5 +37,102 @@ export class SubmissionsService {
       },
       include: SUBMISSION_INCLUDE,
     });
+  }
+
+  /**
+   * Listado por rol: el docente ve las entregas de sus guías,
+   * el alumno ve solo las suyas.
+   */
+  findAll(user: { id: string; role: Role }) {
+    return this.prisma.submission.findMany({
+      where:
+        user.role === Role.TEACHER
+          ? { guide: { teacherId: user.id } }
+          : { studentId: user.id },
+      orderBy: { submittedAt: 'desc' },
+      include: SUBMISSION_INCLUDE,
+    });
+  }
+
+  /**
+   * Detalle: visible para el alumno que entregó y para el docente
+   * de la guía (recepción de soluciones). Para terceros: 404.
+   */
+  async findOne(id: string, requesterId: string) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id },
+      include: {
+        ...SUBMISSION_INCLUDE,
+        guide: { select: { id: true, title: true, teacherId: true } },
+      },
+    });
+
+    if (!submission) {
+      throw new NotFoundException(`No existe la entrega "${id}"`);
+    }
+
+    const isOwner = submission.studentId === requesterId;
+    const isGuideTeacher = submission.guide.teacherId === requesterId;
+
+    if (!isOwner && !isGuideTeacher) {
+      throw new NotFoundException(`No existe la entrega "${id}"`);
+    }
+
+    return submission;
+  }
+
+  /** Solo el alumno dueño puede reemplazar el proyecto entregado */
+  async update(id: string, dto: UpdateSubmissionDto, requesterId: string) {
+    await this.assertOwnership(id, requesterId);
+    await this.assertProjectBelongsTo(dto.projectId, requesterId);
+
+    return this.prisma.submission.update({
+      where: { id },
+      data: { projectId: dto.projectId },
+      include: SUBMISSION_INCLUDE,
+    });
+  }
+
+  /** Solo el alumno dueño puede retirar su entrega */
+  async remove(id: string, requesterId: string) {
+    await this.assertOwnership(id, requesterId);
+    await this.prisma.submission.delete({ where: { id } });
+
+    return { message: 'Entrega eliminada', id };
+  }
+
+  private async assertOwnership(id: string, requesterId: string) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id },
+      select: { id: true, studentId: true },
+    });
+
+    if (!submission) {
+      throw new NotFoundException(`No existe la entrega "${id}"`);
+    }
+
+    if (submission.studentId !== requesterId) {
+      throw new ForbiddenException('No tenés permiso sobre esta entrega');
+    }
+
+    return submission;
+  }
+
+  private async assertProjectBelongsTo(projectId: string, requesterId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, userId: true },
+    });
+
+    if (!project) {
+      throw new NotFoundException(`No existe el proyecto "${projectId}"`);
+    }
+
+    // Solo proyectos propios: los anónimos (userId null) y ajenos se rechazan
+    if (project.userId !== requesterId) {
+      throw new ForbiddenException(
+        'El proyecto no te pertenece: solo podés entregar proyectos propios',
+      );
+    }
   }
 }

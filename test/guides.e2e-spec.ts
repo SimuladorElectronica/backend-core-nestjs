@@ -21,6 +21,7 @@ describe('Guides & Submissions (e2e)', () => {
   let teacherToken: string;
   let otherTeacherToken: string;
   let studentToken: string;
+  let otherStudentToken: string;
 
   const createdUserIds: string[] = [];
   const createdProjectIds: string[] = [];
@@ -79,7 +80,15 @@ describe('Guides & Submissions (e2e)', () => {
         passwordHash,
       },
     });
-    createdUserIds.push(teacher.id, otherTeacher.id, student.id);
+    const otherStudent = await prisma.user.create({
+      data: {
+        email: 'e2e-guides-student2@test.com',
+        name: 'Otro Alumno E2E',
+        role: Role.STUDENT,
+        passwordHash,
+      },
+    });
+    createdUserIds.push(teacher.id, otherTeacher.id, student.id, otherStudent.id);
 
     const login = (email: string) =>
       request(app.getHttpServer())
@@ -91,6 +100,7 @@ describe('Guides & Submissions (e2e)', () => {
     teacherToken = await login(teacher.email);
     otherTeacherToken = await login(otherTeacher.email);
     studentToken = await login(student.email);
+    otherStudentToken = await login(otherStudent.email);
   });
 
   afterAll(async () => {
@@ -377,6 +387,160 @@ describe('Guides & Submissions (e2e)', () => {
         .set('Authorization', `Bearer ${studentToken}`)
         .send({ guideId })
         .expect(400);
+    });
+  });
+
+  describe('GET, PUT y DELETE /submissions', () => {
+    let submissionId: string;
+
+    beforeAll(async () => {
+      const list = await request(app.getHttpServer()).get('/guides').expect(200);
+      const guideId = list.body.find(
+        (g: { title: string }) => g.title === GUIDE.title,
+      ).id as string;
+
+      const projectId = await createProject(
+        studentToken,
+        'E2E Proyecto en entrega sujeta a cambio',
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/submissions')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ guideId, projectId })
+        .expect(201);
+
+      submissionId = res.body.id as string;
+    });
+
+    it('GET /submissions sin token retorna 401', async () => {
+      await request(app.getHttpServer()).get('/submissions').expect(401);
+    });
+
+    it('GET /submissions como alumno lista solo sus entregas', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/submissions')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(
+        res.body.some((s: { id: string }) => s.id === submissionId),
+      ).toBe(true);
+    });
+
+    it('GET /submissions como docente lista las entregas de sus guías', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/submissions')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .expect(200);
+
+      expect(res.body.some((s: { id: string }) => s.id === submissionId)).toBe(
+        true,
+      );
+    });
+
+    it('GET /submissions/:id lo ve el alumno dueño', async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/submissions/${submissionId}`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(200);
+
+      expect(res.body.id).toBe(submissionId);
+    });
+
+    it('GET /submissions/:id lo ve el docente de la guía', async () => {
+      await request(app.getHttpServer())
+        .get(`/submissions/${submissionId}`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .expect(200);
+    });
+
+    it('GET /submissions/:id retorna 404 para un tercero', async () => {
+      await request(app.getHttpServer())
+        .get(`/submissions/${submissionId}`)
+        .set('Authorization', `Bearer ${otherStudentToken}`)
+        .expect(404);
+    });
+
+    it('PUT /submissions/:id sin token retorna 401', async () => {
+      await request(app.getHttpServer())
+        .put(`/submissions/${submissionId}`)
+        .send({ projectId: '00000000-0000-4000-8000-000000000000' })
+        .expect(401);
+    });
+
+    it('PUT como el docente de la guía retorna 403 (no es su entrega)', async () => {
+      await request(app.getHttpServer())
+        .put(`/submissions/${submissionId}`)
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({ projectId: '00000000-0000-4000-8000-000000000000' })
+        .expect(403);
+    });
+
+    it('PUT con el proyecto de otro alumno retorna 403', async () => {
+      const foreignProjectId = await createProject(
+        otherStudentToken,
+        'E2E Proyecto ajeno para PUT',
+      );
+
+      await request(app.getHttpServer())
+        .put(`/submissions/${submissionId}`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ projectId: foreignProjectId })
+        .expect(403);
+    });
+
+    it('PUT con un proyecto inexistente retorna 404', async () => {
+      await request(app.getHttpServer())
+        .put(`/submissions/${submissionId}`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ projectId: '00000000-0000-4000-8000-000000000000' })
+        .expect(404);
+    });
+
+    it('PUT como dueño reemplaza el proyecto entregado', async () => {
+      const newProjectId = await createProject(
+        studentToken,
+        'E2E Proyecto reemplazante',
+      );
+
+      const res = await request(app.getHttpServer())
+        .put(`/submissions/${submissionId}`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ projectId: newProjectId })
+        .expect(200);
+
+      expect(res.body.project.id).toBe(newProjectId);
+    });
+
+    it('DELETE sin token retorna 401', async () => {
+      await request(app.getHttpServer())
+        .delete(`/submissions/${submissionId}`)
+        .expect(401);
+    });
+
+    it('DELETE de otro alumno retorna 403', async () => {
+      await request(app.getHttpServer())
+        .delete(`/submissions/${submissionId}`)
+        .set('Authorization', `Bearer ${otherStudentToken}`)
+        .expect(403);
+    });
+
+    it('DELETE como dueño retira la entrega', async () => {
+      const res = await request(app.getHttpServer())
+        .delete(`/submissions/${submissionId}`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(200);
+
+      expect(res.body.id).toBe(submissionId);
+    });
+
+    it('GET /submissions/:id después de borrar retorna 404', async () => {
+      await request(app.getHttpServer())
+        .get(`/submissions/${submissionId}`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(404);
     });
   });
 });

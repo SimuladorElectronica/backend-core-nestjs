@@ -16,20 +16,32 @@ const dto: CreateSubmissionDto = {
 
 describe('SubmissionsController', () => {
   let controller: SubmissionsController;
-  let service: { create: ReturnType<typeof vi.fn> };
+  let service: {
+    create: ReturnType<typeof vi.fn>;
+    findAll: ReturnType<typeof vi.fn>;
+    findOne: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    remove: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
-    service = { create: vi.fn() };
+    service = {
+      create: vi.fn(),
+      findAll: vi.fn(),
+      findOne: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+    };
     controller = new SubmissionsController(
       service as unknown as SubmissionsService,
     );
   });
 
+  const guardsOf = (handler: unknown): unknown[] =>
+    Reflect.getMetadata(GUARDS_METADATA, handler as never) as unknown[];
+
   it('POST /submissions exige JWT pero no restringe por rol', () => {
-    const guards = Reflect.getMetadata(
-      GUARDS_METADATA,
-      controller.create,
-    ) as unknown[];
+    const guards = guardsOf(controller.create);
 
     expect(guards).toContain(JwtAuthGuard);
     expect(Reflect.getMetadata(ROLES_KEY, controller.create)).toBeUndefined();
@@ -45,5 +57,61 @@ describe('SubmissionsController', () => {
 
     expect(result).toEqual({ id: 's-1' });
     expect(service.create).toHaveBeenCalledWith(dto, 'student-1');
+  });
+
+  it('GET /submissions exige JWT y pasa el usuario completo (el servicio filtra por rol)', async () => {
+    const req = {
+      user: { id: 'teacher-1', email: 'profe@test.com', role: Role.TEACHER },
+    };
+    service.findAll.mockResolvedValue([]);
+
+    expect(guardsOf(controller.findAll)).toContain(JwtAuthGuard);
+
+    await controller.findAll(req as never);
+
+    expect(service.findAll).toHaveBeenCalledWith(req.user);
+  });
+
+  it('GET /submissions/:id exige JWT y delega con el id del solicitante', async () => {
+    const req = {
+      user: { id: 'student-1', email: 'alumno@test.com', role: Role.STUDENT },
+    };
+    service.findOne.mockResolvedValue({ id: 's-1' });
+
+    expect(guardsOf(controller.findOne)).toContain(JwtAuthGuard);
+
+    await controller.findOne('s-1', req as never);
+
+    expect(service.findOne).toHaveBeenCalledWith('s-1', 'student-1');
+  });
+
+  it('PUT /submissions/:id exige JWT y delega con el id del solicitante', async () => {
+    const req = {
+      user: { id: 'student-1', email: 'alumno@test.com', role: Role.STUDENT },
+    };
+    service.update.mockResolvedValue({ id: 's-1' });
+
+    expect(guardsOf(controller.update)).toContain(JwtAuthGuard);
+
+    await controller.update('s-1', { projectId: dto.projectId }, req as never);
+
+    expect(service.update).toHaveBeenCalledWith(
+      's-1',
+      { projectId: dto.projectId },
+      'student-1',
+    );
+  });
+
+  it('DELETE /submissions/:id exige JWT y delega con el id del solicitante', async () => {
+    const req = {
+      user: { id: 'student-1', email: 'alumno@test.com', role: Role.STUDENT },
+    };
+    service.remove.mockResolvedValue({ message: 'Entrega eliminada', id: 's-1' });
+
+    expect(guardsOf(controller.remove)).toContain(JwtAuthGuard);
+
+    await controller.remove('s-1', req as never);
+
+    expect(service.remove).toHaveBeenCalledWith('s-1', 'student-1');
   });
 });
