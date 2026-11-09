@@ -24,6 +24,8 @@ src/
 │   └── dto/                 # create-guide.dto
 ├── submissions/             # Entregas de alumnos (Issue 3.4)
 │   └── dto/                 # create-submission.dto
+├── users/                   # Promoción de roles (solo ADMIN)
+│   └── dto/                 # update-role.dto
 ├── prisma/                  # PrismaService (conexión) + PrismaModule global
 ├── guards/                  # JwtAuthGuard, OptionalJwtAuthGuard, RolesGuard
 ├── strategies/              # JwtStrategy (valida el token y carga el usuario)
@@ -32,7 +34,7 @@ src/
 
 prisma/
 ├── schema.prisma            # Modelos y enums
-├── seed.ts                  # Usuarios demo (TEACHER/STUDENT) + librerías
+├── seed.ts                  # Usuarios demo (ADMIN/TEACHER/STUDENT) + librerías
 └── migrations/              # Migraciones de PostgreSQL
 
 test/                        # Pruebas e2e (Supertest contra la DB real)
@@ -45,7 +47,7 @@ docs/                        # EVALUACION.md, ESTRUCTURA.md (este archivo)
 
 | Modelo | Campos clave | Relaciones |
 | :--- | :--- | :--- |
-| **User** | `email` único, `passwordHash` (Argon2id), `role` (`TEACHER` \| `STUDENT`, por defecto `STUDENT`) | dueño de `projects`, `guides` (docente) y `submissions` (alumno) |
+| **User** | `email` único, `passwordHash` (Argon2id), `role` (`ADMIN` \| `TEACHER` \| `STUDENT`, por defecto `STUDENT`) | dueño de `projects`, `guides` (docente) y `submissions` (alumno) |
 | **Project** | `shareSlug` único (6 chars, enlace público), `circuitData` (JSONB), `code` (C++), `isPublic`, `userId` **nullable** (permite guardado anónimo) | puede ser plantilla de guías y entrega de alumnos |
 | **Guide** | `title`, `instructions`, `teacherId`, `starterProjectId` | `teacher` → User, `starterProject` → Project, tiene muchas `submissions` |
 | **Submission** | `guideId`, `studentId`, `projectId`, `submittedAt` | entrega de un proyecto propio a una guía |
@@ -63,14 +65,15 @@ docs/                        # EVALUACION.md, ESTRUCTURA.md (este archivo)
 | `RolesGuard` + `@Roles(Role.X)` | Si el rol del token no está permitido: **403** |
 | `OptionalJwtAuthGuard` | Acepta anónimo; si hay token, popula `req.user` |
 
-- El token se genera en `POST /auth/register` y `POST /auth/login` (payload: `sub` = id, `email`).
-- El registro crea usuarios `STUDENT` por defecto; el `prisma/seed.ts` crea además un docente (`profe@demo.com`).
+- El token se genera en `POST /auth/register` y `POST /auth/login` (payload: `sub` = id, `email`). El rol **no** viaja en el JWT: `JwtStrategy` lo carga desde la DB en cada request, por lo que una promoción vía `PATCH /users/:id/role` surte efecto sin volver a loguearse.
+- El registro crea usuarios `STUDENT` por defecto (`RegisterDto` no acepta `role`; con `ValidationPipe({ whitelist: true })` el campo se descarta); el `prisma/seed.ts` crea además un docente (`profe@demo.com`) y un administrador (`admin@demo.com`).
+- Roles: `ADMIN` gestiona librerías y promueve usuarios · `TEACHER` gestiona guías · `STUDENT` (por defecto) solo consume y entrega.
 
 ---
 
 ## Endpoints
 
-Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER`
+Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER` · 👑 solo rol `ADMIN`
 
 ### App
 
@@ -102,9 +105,15 @@ Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER`
 | :--- | :--- | :--- | :--- |
 | GET | `/libraries` | 🔓 | Lista todas las librerías curadas (orden alfabético). |
 | GET | `/libraries/:id` | 🔓 | Detalle de una librería por UUID. **404** si no existe. |
-| POST | `/libraries` | 🎓 | Crea una librería curada (`name`, `headerFile`, `author`, `description`, `version`). **401** sin token · **403** STUDENT · **409** nombre duplicado. |
-| PUT | `/libraries/:id` | 🎓 | Actualiza los campos enviados. **403** STUDENT · **404**. |
-| DELETE | `/libraries/:id` | 🎓 | Elimina la librería. **403** STUDENT · **404**. |
+| POST | `/libraries` | 👑 | Crea una librería curada (`name`, `headerFile`, `author`, `description`, `version`). **401** sin token · **403** STUDENT y TEACHER · **409** nombre duplicado. |
+| PUT | `/libraries/:id` | 👑 | Actualiza los campos enviados. **403** STUDENT y TEACHER · **404**. |
+| DELETE | `/libraries/:id` | 👑 | Elimina la librería. **403** STUDENT y TEACHER · **404**. |
+
+### Users — tag `Users`
+
+| Método | Ruta | Acceso | Descripción |
+| :--- | :--- | :--- | :--- |
+| PATCH | `/users/:id/role` | 👑 | Cambia el rol de un usuario (`role`: `ADMIN` \| `TEACHER` \| `STUDENT`). Retorna `{ id, email, name, role }` sin `passwordHash`. **401** sin token · **403** STUDENT/TEACHER · **403** si un admin intenta cambiar su propio rol · **400** UUID inválido o rol inválido · **404** usuario inexistente. |
 
 ### Guides — tag `Guides` (Issue 3.4)
 

@@ -46,9 +46,9 @@ export class LibrariesController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.TEACHER)
+  @Roles(Role.ADMIN)
   @ApiBearerAuth('bearer')
-  @ApiOperation({ summary: 'Crear una librería curada (solo rol TEACHER)' })
+  @ApiOperation({ summary: 'Crear una librería curada (solo rol ADMIN)' })
   @ApiCreatedResponse({ description: 'Librería creada' })
   create(@Body() dto: CreateLibraryDto) {
     return this.librariesService.create(dto);
@@ -56,10 +56,10 @@ export class LibrariesController {
 
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.TEACHER)
+  @Roles(Role.ADMIN)
   @ApiBearerAuth('bearer')
   @ApiOperation({
-    summary: 'Actualizar una librería curada (solo rol TEACHER)',
+    summary: 'Actualizar una librería curada (solo rol ADMIN)',
   })
   @ApiOkResponse({ description: 'Librería actualizada' })
   update(
@@ -71,10 +71,10 @@ export class LibrariesController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.TEACHER)
+  @Roles(Role.ADMIN)
   @ApiBearerAuth('bearer')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Eliminar una librería curada (solo rol TEACHER)' })
+  @ApiOperation({ summary: 'Eliminar una librería curada (solo rol ADMIN)' })
   @ApiOkResponse({ description: 'Librería eliminada' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.librariesService.remove(id);

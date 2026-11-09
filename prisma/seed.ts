@@ -8,7 +8,7 @@
  * duplicar usuarios ni librerías (los existentes no se modifican).
  *
  * Variables de entorno opcionales:
- *   SEED_PASSWORD, SEED_TEACHER_EMAIL, SEED_STUDENT_EMAIL
+ *   SEED_PASSWORD, SEED_TEACHER_EMAIL, SEED_STUDENT_EMAIL, SEED_ADMIN_EMAIL
  */
 import { PrismaClient, Role } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -18,6 +18,7 @@ const prisma = new PrismaClient();
 const PASSWORD = process.env.SEED_PASSWORD ?? 'Password123!';
 const TEACHER_EMAIL = process.env.SEED_TEACHER_EMAIL ?? 'profe@demo.com';
 const STUDENT_EMAIL = process.env.SEED_STUDENT_EMAIL ?? 'alumno@demo.com';
+const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@demo.com';
 
 /** Ejemplos de la biblioteca curada (gestión manual desde POST /libraries) */
 const LIBRARIES = [
@@ -67,6 +68,7 @@ async function upsertUser(email: string, name: string, role: Role) {
 async function main() {
   console.log('Seedando usuarios de prueba...');
 
+  await upsertUser(ADMIN_EMAIL, 'Administrador demo', Role.ADMIN);
   await upsertUser(TEACHER_EMAIL, 'Docente demo', Role.TEACHER);
   await upsertUser(STUDENT_EMAIL, 'Alumno demo', Role.STUDENT);
 
@@ -87,6 +89,7 @@ async function main() {
   }
 
   console.log('\nSeed completado.');
+  console.log(`  Admin: ${ADMIN_EMAIL} / ${PASSWORD}`);
   console.log(`  Teacher: ${TEACHER_EMAIL} / ${PASSWORD}`);
   console.log(`  Student: ${STUDENT_EMAIL} / ${PASSWORD}`);
 }
