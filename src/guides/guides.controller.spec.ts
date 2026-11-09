@@ -22,6 +22,8 @@ describe('GuidesController', () => {
     create: ReturnType<typeof vi.fn>;
     findAll: ReturnType<typeof vi.fn>;
     findOne: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    remove: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -29,6 +31,8 @@ describe('GuidesController', () => {
       create: vi.fn(),
       findAll: vi.fn(),
       findOne: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
     };
     controller = new GuidesController(service as unknown as GuidesService);
   });
@@ -87,6 +91,62 @@ describe('GuidesController', () => {
 
       await expect(controller.findOne('g-1')).resolves.toEqual(guide);
       expect(service.findOne).toHaveBeenCalledWith('g-1');
+    });
+  });
+
+  describe('PUT /guides/:id', () => {
+    it('exige JWT y rol TEACHER, además del chequeo de ownership en el servicio', () => {
+      const guards = Reflect.getMetadata(GUARDS_METADATA, controller.update) as unknown[];
+
+      expect(guards).toContain(JwtAuthGuard);
+      expect(guards).toContain(RolesGuard);
+      expect(Reflect.getMetadata(ROLES_KEY, controller.update)).toEqual([
+        Role.TEACHER,
+      ]);
+    });
+
+    it('delega la edición con el id del docente autenticado', async () => {
+      const req = {
+        user: { id: 'teacher-1', email: 'profe@test.com', role: Role.TEACHER },
+      };
+      service.update.mockResolvedValue({ id: 'g-1', title: 'Editada' });
+
+      const result = await controller.update(
+        'g-1',
+        { title: 'Editada' },
+        req as never,
+      );
+
+      expect(result).toEqual({ id: 'g-1', title: 'Editada' });
+      expect(service.update).toHaveBeenCalledWith(
+        'g-1',
+        { title: 'Editada' },
+        'teacher-1',
+      );
+    });
+  });
+
+  describe('DELETE /guides/:id', () => {
+    it('exige JWT y rol TEACHER, además del chequeo de ownership en el servicio', () => {
+      const guards = Reflect.getMetadata(GUARDS_METADATA, controller.remove) as unknown[];
+
+      expect(guards).toContain(JwtAuthGuard);
+      expect(guards).toContain(RolesGuard);
+      expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual([
+        Role.TEACHER,
+      ]);
+    });
+
+    it('delega la eliminación con el id del docente autenticado', async () => {
+      const req = {
+        user: { id: 'teacher-1', email: 'profe@test.com', role: Role.TEACHER },
+      };
+      service.remove.mockResolvedValue({ message: 'Guía eliminada', id: 'g-1' });
+
+      const result = await controller.remove('g-1', req as never);
+
+      expect(result).toEqual({ message: 'Guía eliminada', id: 'g-1' });
+      expect(service.remove).toHaveBeenCalledWith('g-1', 'teacher-1');
     });
   });
 });

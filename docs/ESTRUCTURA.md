@@ -113,6 +113,8 @@ Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER`
 | POST | `/guides` | 🎓 | Crea una guía didáctica (`title`, `instructions`, `starterProjectId` UUID). Se asocia al docente del token y a un **proyecto plantilla** existente. **401** sin token · **403** STUDENT (criterio de aceptación) · **404** si el proyecto plantilla no existe · **400** si faltan campos o el UUID es inválido. |
 | GET | `/guides` | 🔓 | Lista las guías de más reciente a más antigua, incluyendo `teacher` (`id`, `name`) y `starterProject` (`id`, `title`, `shareSlug`). |
 | GET | `/guides/:id` | 🔓 | Detalle de la guía con instrucciones, docente y proyecto plantilla. **400** UUID inválido · **404** inexistente. |
+| PUT | `/guides/:id` | 🎓 | Actualiza los campos enviados de una guía **propia** (`title`, `instructions`, `starterProjectId`). **401** sin token · **403** STUDENT · **403** si la guía es de otro docente (ownership) · **404** si la guía o el nuevo proyecto plantilla no existen. |
+| DELETE | `/guides/:id` | 🎓 | Elimina una guía **propia** (sus entregas se borran en cascada). **401** sin token · **403** STUDENT · **403** si la guía es de otro docente (ownership) · **404**. |
 
 ### Submissions — tag `Submissions` (Issue 3.4)
 
