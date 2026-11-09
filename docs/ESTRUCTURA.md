@@ -120,7 +120,11 @@ Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER`
 
 | Método | Ruta | Acceso | Descripción |
 | :--- | :--- | :--- | :--- |
-| POST | `/submissions` | 🔒 | Registra la entrega de un proyecto a una guía (`guideId`, `projectId`). El proyecto debe **pertenecer al usuario autenticado**. **401** sin token · **404** si la guía o el proyecto no existen · **403** si el proyecto es ajeno o anónimo · **400** si faltan campos. |
+| POST | `/submissions` | 🔒 | Registra la entrega de un proyecto a una guía (`guideId`, `projectId`). El proyecto debe **pertenecer al usuario autenticado**. **401** sin token · **404** si la guía o el proyecto no existen · **403** si el proyecto es ajeno o anónimo · **400** si faltan campos. **201**. |
+| GET | `/submissions` | 🔒 | Lista entregas por rol: el **docente** ve las entregas de sus guías; el **alumno**, solo las suyas. Ordenadas de más reciente a más antigua. |
+| GET | `/submissions/:id` | 🔒 | Detalle de una entrega. Visible solo para el **alumno que entregó** y para el **docente de la guía**; para terceros retorna **404** (no filtra su existencia). |
+| PUT | `/submissions/:id` | 🔒 | Reemplaza el proyecto entregado (`projectId` nuevo). **403** si la entrega no es del solicitante o el proyecto nuevo no le pertenece · **404** si la entrega o el proyecto no existen. |
+| DELETE | `/submissions/:id` | 🔒 | Retira una entrega **propia**. **403** si pertenece a otro alumno · **404**. |
 
 ---
 
