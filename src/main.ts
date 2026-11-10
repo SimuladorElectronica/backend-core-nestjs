@@ -33,7 +33,11 @@ async function bootstrap() {
     )
     .addTag(
       'Libraries',
-      'Librerías C++ curadas (lectura pública, escritura solo rol TEACHER)',
+      'Librerías C++ curadas (lectura pública, escritura solo rol ADMIN)',
+    )
+    .addTag(
+      'Users',
+      'Promoción de roles (solo rol ADMIN)',
     )
     .addTag(
       'Guides',

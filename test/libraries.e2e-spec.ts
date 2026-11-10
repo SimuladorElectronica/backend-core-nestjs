@@ -11,7 +11,7 @@ import { PrismaService } from '../src/prisma/prisma.service.js';
 /**
  * Evidencia (Supertest) del CRUD de CuratedLibrary:
  * - lectura pública (GET / GET :id)
- * - escritura solo rol TEACHER (401 sin token, 403 con STUDENT)
+ * - escritura solo rol ADMIN (401 sin token, 403 con STUDENT y con TEACHER)
  * - ciclo completo create → update → delete y errores 409/404
  */
 describe('Libraries (e2e)', () => {
@@ -19,6 +19,7 @@ describe('Libraries (e2e)', () => {
   let prisma: PrismaService;
   let teacherToken: string;
   let studentToken: string;
+  let adminToken: string;
 
   const createdUserIds: string[] = [];
   let libraryId: string | null = null;
@@ -48,6 +49,14 @@ describe('Libraries (e2e)', () => {
       type: argon2.argon2id,
     });
 
+    const admin = await prisma.user.create({
+      data: {
+        email: 'e2e-admin@test.com',
+        name: 'Admin E2E',
+        role: Role.ADMIN,
+        passwordHash,
+      },
+    });
     const teacher = await prisma.user.create({
       data: {
         email: 'e2e-teacher@test.com',
@@ -64,7 +73,7 @@ describe('Libraries (e2e)', () => {
         passwordHash,
       },
     });
-    createdUserIds.push(teacher.id, student.id);
+    createdUserIds.push(admin.id, teacher.id, student.id);
 
     const login = (email: string) =>
       request(app.getHttpServer())
@@ -73,6 +82,7 @@ describe('Libraries (e2e)', () => {
         .expect(201)
         .then((res) => res.body.access_token as string);
 
+    adminToken = await login(admin.email);
     teacherToken = await login(teacher.email);
     studentToken = await login(student.email);
   });
@@ -114,10 +124,20 @@ describe('Libraries (e2e)', () => {
     expect(res.body.error).toBe('Forbidden');
   });
 
-  it('POST /libraries con rol TEACHER crea la librería', async () => {
+  it('POST /libraries con rol TEACHER retorna 403', async () => {
     const res = await request(app.getHttpServer())
       .post('/libraries')
       .set('Authorization', `Bearer ${teacherToken}`)
+      .send(LIBRARY)
+      .expect(403);
+
+    expect(res.body.error).toBe('Forbidden');
+  });
+
+  it('POST /libraries con rol ADMIN crea la librería', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/libraries')
+      .set('Authorization', `Bearer ${adminToken}`)
       .send(LIBRARY)
       .expect(201);
 
@@ -129,7 +149,7 @@ describe('Libraries (e2e)', () => {
   it('POST /libraries con nombre duplicado retorna 409', async () => {
     const res = await request(app.getHttpServer())
       .post('/libraries')
-      .set('Authorization', `Bearer ${teacherToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send(LIBRARY)
       .expect(409);
 
@@ -144,10 +164,18 @@ describe('Libraries (e2e)', () => {
     expect(res.body.name).toBe(LIBRARY.name);
   });
 
-  it('PUT /libraries/:id como TEACHER actualiza la versión', async () => {
-    const res = await request(app.getHttpServer())
+  it('PUT /libraries/:id como TEACHER retorna 403', async () => {
+    await request(app.getHttpServer())
       .put(`/libraries/${libraryId}`)
       .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ version: '9.9.9' })
+      .expect(403);
+  });
+
+  it('PUT /libraries/:id como ADMIN actualiza la versión', async () => {
+    const res = await request(app.getHttpServer())
+      .put(`/libraries/${libraryId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ version: '2.0.0' })
       .expect(200);
 
@@ -162,10 +190,17 @@ describe('Libraries (e2e)', () => {
       .expect(403);
   });
 
-  it('DELETE /libraries/:id como TEACHER elimina la librería', async () => {
-    const res = await request(app.getHttpServer())
+  it('DELETE /libraries/:id como TEACHER retorna 403', async () => {
+    await request(app.getHttpServer())
       .delete(`/libraries/${libraryId}`)
       .set('Authorization', `Bearer ${teacherToken}`)
+      .expect(403);
+  });
+
+  it('DELETE /libraries/:id como ADMIN elimina la librería', async () => {
+    const res = await request(app.getHttpServer())
+      .delete(`/libraries/${libraryId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
     expect(res.body.id).toBe(libraryId);

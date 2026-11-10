@@ -7,6 +7,7 @@ import { ProjectsModule } from './projects/projects.module.js';
 import { LibrariesModule } from './libraries/libraries.module.js';
 import { GuidesModule } from './guides/guides.module.js';
 import { SubmissionsModule } from './submissions/submissions.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { SubmissionsModule } from './submissions/submissions.module.js';
     LibrariesModule,
     GuidesModule,
     SubmissionsModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
