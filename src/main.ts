@@ -6,7 +6,8 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  // `transform` permite convertir los query params (?take=20) a number
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const config = new DocumentBuilder()
     .setTitle('Simulador Web API')
@@ -37,7 +38,7 @@ async function bootstrap() {
     )
     .addTag(
       'Users',
-      'Promoción de roles (solo rol ADMIN)',
+      'Directorio de usuarios, promoción de roles y gestión de cuentas',
     )
     .addTag(
       'Guides',

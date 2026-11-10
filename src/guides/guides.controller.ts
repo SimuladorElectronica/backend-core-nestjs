@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -23,6 +24,7 @@ import { Request } from 'express';
 import { GuidesService } from './guides.service.js';
 import { CreateGuideDto } from './dto/create-guide.dto.js';
 import { UpdateGuideDto } from './dto/update-guide.dto.js';
+import { ListGuidesQueryDto } from './dto/list-guides-query.dto.js';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
 import { RolesGuard } from '../guards/roles.guard.js';
 import { Roles } from '../decorators/roles.decorator.js';
@@ -54,12 +56,14 @@ export class GuidesController {
   @Get()
   @ApiOperation({
     summary: 'Listar guías didácticas (más recientes primero)',
+    description:
+      'Con `?teacherId=<uuid>` se listan solo las guías de ese docente.',
   })
   @ApiOkResponse({
     description: 'Listado de guías con su docente y proyecto plantilla',
   })
-  findAll() {
-    return this.guidesService.findAll();
+  findAll(@Query() query: ListGuidesQueryDto) {
+    return this.guidesService.findAll(query);
   }
 
   @Get(':id')

@@ -7,10 +7,14 @@ import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateSubmissionDto } from './dto/create-submission.dto.js';
 import { UpdateSubmissionDto } from './dto/update-submission.dto.js';
+import { ListSubmissionsQueryDto } from './dto/list-submissions-query.dto.js';
+import { resolvePagination } from '../common/dto/pagination-query.dto.js';
 
 const SUBMISSION_INCLUDE = {
   guide: { select: { id: true, title: true } },
   project: { select: { id: true, title: true, shareSlug: true } },
+  // Datos públicos del alumno que entregó (nunca el passwordHash)
+  student: { select: { id: true, name: true, email: true } },
 } satisfies Prisma.SubmissionInclude;
 
 @Injectable()
@@ -40,18 +44,36 @@ export class SubmissionsService {
   }
 
   /**
-   * Listado por rol: el docente ve las entregas de sus guías,
-   * el alumno ve solo las suyas.
+   * Listado paginado por rol: el docente ve las entregas de sus guías,
+   * el alumno ve solo las suyas. `guideId` filtra dentro de ese alcance.
    */
-  findAll(user: { id: string; role: Role }) {
-    return this.prisma.submission.findMany({
-      where:
-        user.role === Role.TEACHER
-          ? { guide: { teacherId: user.id } }
-          : { studentId: user.id },
-      orderBy: { submittedAt: 'desc' },
-      include: SUBMISSION_INCLUDE,
-    });
+  async findAll(
+    user: { id: string; role: Role },
+    query: ListSubmissionsQueryDto = {},
+  ) {
+    const where: Prisma.SubmissionWhereInput =
+      user.role === Role.TEACHER
+        ? { guide: { teacherId: user.id } }
+        : { studentId: user.id };
+
+    if (query.guideId) {
+      where.guideId = query.guideId;
+    }
+
+    const { take, skip } = resolvePagination(query);
+
+    const [items, total] = await Promise.all([
+      this.prisma.submission.findMany({
+        where,
+        orderBy: { submittedAt: 'desc' },
+        take,
+        skip,
+        include: SUBMISSION_INCLUDE,
+      }),
+      this.prisma.submission.count({ where }),
+    ]);
+
+    return { items, total };
   }
 
   /**

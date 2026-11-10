@@ -31,7 +31,7 @@ describe('Projects (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
 
     prisma = app.get(PrismaService);
@@ -102,6 +102,24 @@ describe('Projects (e2e)', () => {
     // eslint-disable-next-line no-console
     console.log(`GET /projects/:shareSlug → ${elapsed.toFixed(2)} ms`);
     expect(elapsed).toBeLessThan(50);
+  });
+
+  it('GET /projects pagina con take/skip y expone X-Total-Count', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/projects')
+      .query({ take: 1, skip: 0 })
+      .expect(200);
+
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeLessThanOrEqual(1);
+    expect(Number(res.headers['x-total-count'])).toBeGreaterThanOrEqual(0);
+  });
+
+  it('GET /projects con take fuera de rango retorna 400', async () => {
+    await request(app.getHttpServer())
+      .get('/projects')
+      .query({ take: 101 })
+      .expect(400);
   });
 
   it('GET /projects/:shareSlug inexistente retorna 404', async () => {

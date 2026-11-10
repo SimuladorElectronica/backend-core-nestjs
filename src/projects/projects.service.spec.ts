@@ -28,6 +28,7 @@ describe('ProjectsService', () => {
       create: ReturnType<typeof vi.fn>;
       findUnique: ReturnType<typeof vi.fn>;
       findMany: ReturnType<typeof vi.fn>;
+      count: ReturnType<typeof vi.fn>;
       update: ReturnType<typeof vi.fn>;
       delete: ReturnType<typeof vi.fn>;
     };
@@ -39,6 +40,7 @@ describe('ProjectsService', () => {
         create: vi.fn(),
         findUnique: vi.fn(),
         findMany: vi.fn(),
+        count: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
       },
@@ -139,6 +141,7 @@ describe('ProjectsService', () => {
   describe('list', () => {
     it('lista los proyectos propios cuando hay sesión', async () => {
       prisma.project.findMany.mockResolvedValue([]);
+      prisma.project.count.mockResolvedValue(0);
 
       await service.list('user-1');
 
@@ -149,12 +152,25 @@ describe('ProjectsService', () => {
 
     it('lista proyectos públicos para usuarios anónimos', async () => {
       prisma.project.findMany.mockResolvedValue([]);
+      prisma.project.count.mockResolvedValue(0);
 
       await service.list(null);
 
       expect(prisma.project.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { isPublic: true } }),
       );
+    });
+
+    it('aplica la paginación por offset y retorna el total', async () => {
+      prisma.project.findMany.mockResolvedValue([{ id: 'p-1' }]);
+      prisma.project.count.mockResolvedValue(42);
+
+      const result = await service.list('user-1', { take: 5, skip: 10 });
+
+      expect(prisma.project.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 5, skip: 10 }),
+      );
+      expect(result).toEqual({ items: [{ id: 'p-1' }], total: 42 });
     });
   });
 

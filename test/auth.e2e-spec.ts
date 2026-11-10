@@ -26,7 +26,7 @@ describe('Auth register (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
 
     prisma = app.get(PrismaService);
@@ -60,6 +60,7 @@ describe('Auth register (e2e)', () => {
       .expect(200);
 
     expect(me.body.email).toBe(EMAIL);
+    expect(me.body.name).toBe('Intento Admin');
     expect(me.body.role).toBe(Role.STUDENT);
 
     createdUserId = me.body.id as string;

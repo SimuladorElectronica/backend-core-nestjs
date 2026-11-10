@@ -25,6 +25,7 @@ describe('LibrariesService', () => {
       create: ReturnType<typeof vi.fn>;
       findMany: ReturnType<typeof vi.fn>;
       findUnique: ReturnType<typeof vi.fn>;
+      count: ReturnType<typeof vi.fn>;
       update: ReturnType<typeof vi.fn>;
       delete: ReturnType<typeof vi.fn>;
     };
@@ -36,6 +37,7 @@ describe('LibrariesService', () => {
         create: vi.fn(),
         findMany: vi.fn(),
         findUnique: vi.fn(),
+        count: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
       },
@@ -55,6 +57,33 @@ describe('LibrariesService', () => {
     expect(prisma.curatedLibrary.create).toHaveBeenCalledWith({
       data: dto,
     });
+  });
+
+  it('lista con búsqueda por nombre/autor y devuelve el total', async () => {
+    prisma.curatedLibrary.findMany.mockResolvedValue([{ id: 'lib-1' }]);
+    prisma.curatedLibrary.count.mockResolvedValue(1);
+
+    const result = await service.findAll({ q: 'lcd', take: 5, skip: 0 });
+
+    expect(prisma.curatedLibrary.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ OR: expect.any(Array) }),
+        take: 5,
+        skip: 0,
+      }),
+    );
+    expect(result).toEqual({ items: [{ id: 'lib-1' }], total: 1 });
+  });
+
+  it('usa la paginación por defecto sin filtros', async () => {
+    prisma.curatedLibrary.findMany.mockResolvedValue([]);
+    prisma.curatedLibrary.count.mockResolvedValue(0);
+
+    await service.findAll();
+
+    expect(prisma.curatedLibrary.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: {}, take: 20, skip: 0 }),
+    );
   });
 
   it('retorna 409 si el nombre ya existe', async () => {

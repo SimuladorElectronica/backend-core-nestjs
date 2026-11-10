@@ -39,7 +39,7 @@ describe('Libraries (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
 
     prisma = app.get(PrismaService);
@@ -162,6 +162,24 @@ describe('Libraries (e2e)', () => {
       .expect(200);
 
     expect(res.body.name).toBe(LIBRARY.name);
+  });
+
+  it('GET /libraries filtra con ?q= y pagina con X-Total-Count', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/libraries')
+      .query({ q: 'E2E_Libreria', take: 1, skip: 0 })
+      .expect(200);
+
+    expect(res.headers['x-total-count']).toBe('1');
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].name).toBe(LIBRARY.name);
+  });
+
+  it('GET /libraries con take inválido retorna 400', async () => {
+    await request(app.getHttpServer())
+      .get('/libraries')
+      .query({ take: 0 })
+      .expect(400);
   });
 
   it('PUT /libraries/:id como TEACHER retorna 403', async () => {

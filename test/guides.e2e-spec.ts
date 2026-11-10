@@ -22,6 +22,7 @@ describe('Guides & Submissions (e2e)', () => {
   let otherTeacherToken: string;
   let studentToken: string;
   let otherStudentToken: string;
+  let teacherId: string;
 
   const createdUserIds: string[] = [];
   const createdProjectIds: string[] = [];
@@ -47,7 +48,7 @@ describe('Guides & Submissions (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
 
     prisma = app.get(PrismaService);
@@ -88,6 +89,7 @@ describe('Guides & Submissions (e2e)', () => {
         passwordHash,
       },
     });
+    teacherId = teacher.id;
     createdUserIds.push(teacher.id, otherTeacher.id, student.id, otherStudent.id);
 
     const login = (email: string) =>
@@ -209,6 +211,27 @@ describe('Guides & Submissions (e2e)', () => {
       expect(
         res.body.some((g: { title: string }) => g.title === GUIDE.title),
       ).toBe(true);
+    });
+
+    it('GET /guides?teacherId= filtra las guías del docente', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/guides')
+        .query({ teacherId })
+        .expect(200);
+
+      expect(res.body.length).toBeGreaterThan(0);
+      expect(
+        res.body.every(
+          (g: { teacher: { id: string } }) => g.teacher.id === teacherId,
+        ),
+      ).toBe(true);
+    });
+
+    it('GET /guides con teacherId inválido retorna 400', async () => {
+      await request(app.getHttpServer())
+        .get('/guides')
+        .query({ teacherId: 'no-uuid' })
+        .expect(400);
     });
 
     it('GET /guides/:id retorna la guía con instrucciones', async () => {
@@ -392,10 +415,11 @@ describe('Guides & Submissions (e2e)', () => {
 
   describe('GET, PUT y DELETE /submissions', () => {
     let submissionId: string;
+    let guideId: string;
 
     beforeAll(async () => {
       const list = await request(app.getHttpServer()).get('/guides').expect(200);
-      const guideId = list.body.find(
+      guideId = list.body.find(
         (g: { title: string }) => g.title === GUIDE.title,
       ).id as string;
 
@@ -435,9 +459,44 @@ describe('Guides & Submissions (e2e)', () => {
         .set('Authorization', `Bearer ${teacherToken}`)
         .expect(200);
 
-      expect(res.body.some((s: { id: string }) => s.id === submissionId)).toBe(
-        true,
+      const found = res.body.find(
+        (s: { id: string }) => s.id === submissionId,
       );
+
+      expect(found).toBeDefined();
+      // El docente puede identificar al alumno que entregó, sin passwordHash
+      expect(found.student).toEqual({
+        id: found.studentId,
+        name: 'Alumno Guías E2E',
+        email: 'e2e-guides-student@test.com',
+      });
+      expect(found.student).not.toHaveProperty('passwordHash');
+    });
+
+    it('GET /submissions?guideId= filtra y expone X-Total-Count', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/submissions')
+        .query({ guideId, take: 10, skip: 0 })
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(200);
+
+      expect(Number(res.headers['x-total-count'])).toBeGreaterThanOrEqual(1);
+      expect(
+        res.body.every(
+          (s: { guide: { id: string } }) => s.guide.id === guideId,
+        ),
+      ).toBe(true);
+      expect(
+        res.body.some((s: { id: string }) => s.id === submissionId),
+      ).toBe(true);
+    });
+
+    it('GET /submissions con guideId inválido retorna 400', async () => {
+      await request(app.getHttpServer())
+        .get('/submissions')
+        .query({ guideId: 'no-uuid' })
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(400);
     });
 
     it('GET /submissions/:id lo ve el alumno dueño', async () => {

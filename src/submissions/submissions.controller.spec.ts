@@ -59,17 +59,26 @@ describe('SubmissionsController', () => {
     expect(service.create).toHaveBeenCalledWith(dto, 'student-1');
   });
 
-  it('GET /submissions exige JWT y pasa el usuario completo (el servicio filtra por rol)', async () => {
+  it('GET /submissions exige JWT, pasa el usuario completo y expone el total', async () => {
     const req = {
       user: { id: 'teacher-1', email: 'profe@test.com', role: Role.TEACHER },
     };
-    service.findAll.mockResolvedValue([]);
+    const res = { setHeader: vi.fn() };
+    service.findAll.mockResolvedValue({ items: [{ id: 's-1' }], total: 3 });
 
     expect(guardsOf(controller.findAll)).toContain(JwtAuthGuard);
 
-    await controller.findAll(req as never);
+    const result = await controller.findAll(
+      req as never,
+      { guideId: dto.guideId },
+      res as never,
+    );
 
-    expect(service.findAll).toHaveBeenCalledWith(req.user);
+    expect(result).toEqual([{ id: 's-1' }]);
+    expect(service.findAll).toHaveBeenCalledWith(req.user, {
+      guideId: dto.guideId,
+    });
+    expect(res.setHeader).toHaveBeenCalledWith('X-Total-Count', 3);
   });
 
   it('GET /submissions/:id exige JWT y delega con el id del solicitante', async () => {

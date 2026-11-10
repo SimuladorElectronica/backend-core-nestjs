@@ -79,8 +79,16 @@ describe('GuidesController', () => {
       const guides = [{ id: 'g-1' }];
       service.findAll.mockResolvedValue(guides);
 
-      await expect(controller.findAll()).resolves.toEqual(guides);
-      expect(service.findAll).toHaveBeenCalledTimes(1);
+      await expect(controller.findAll({})).resolves.toEqual(guides);
+      expect(service.findAll).toHaveBeenCalledWith({});
+    });
+
+    it('delega el filtro por docente', async () => {
+      service.findAll.mockResolvedValue([]);
+
+      await controller.findAll({ teacherId: 'teacher-1' });
+
+      expect(service.findAll).toHaveBeenCalledWith({ teacherId: 'teacher-1' });
     });
   });
 
