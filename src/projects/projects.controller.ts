@@ -9,22 +9,26 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
-import { Request } from 'express';
+import type { Request, Response } from 'express';
 import { Role } from '@prisma/client';
 import { ProjectsService } from './projects.service.js';
 import { CreateProjectDto } from './dto/create-project.dto.js';
 import { UpdateProjectDto } from './dto/update-project.dto.js';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto.js';
 import { OptionalJwtAuthGuard } from '../guards/optional-jwt-auth.guard.js';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
 
@@ -59,10 +63,26 @@ export class ProjectsController {
   @ApiOperation({
     summary:
       'Listar proyectos: los propios si hay token, o los públicos recientes si es anónimo',
+    description:
+      'Paginado con `?take=` (máximo 100, por defecto 20) y `?skip=`. ' +
+      'El total de coincidencias se devuelve en el header `X-Total-Count`.',
   })
-  @ApiOkResponse({ description: 'Hasta 20 proyectos ordenados por actividad' })
-  list(@Req() req: OptionalAuthRequest) {
-    return this.projectsService.list(req.user?.id ?? null);
+  @ApiHeader({
+    name: 'X-Total-Count',
+    description: 'Total de proyectos que cumplen el alcance de la consulta',
+  })
+  @ApiOkResponse({ description: 'Proyectos ordenados por actividad' })
+  async list(
+    @Req() req: OptionalAuthRequest,
+    @Query() query: PaginationQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { items, total } = await this.projectsService.list(
+      req.user?.id ?? null,
+      query,
+    );
+    res.setHeader('X-Total-Count', total);
+    return items;
   }
 
   @Get(':key')

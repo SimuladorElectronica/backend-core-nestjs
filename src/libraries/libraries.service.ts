@@ -7,6 +7,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateLibraryDto } from './dto/create-library.dto.js';
 import { UpdateLibraryDto } from './dto/update-library.dto.js';
+import { ListLibrariesQueryDto } from './dto/list-libraries-query.dto.js';
+import { resolvePagination } from '../common/dto/pagination-query.dto.js';
 
 @Injectable()
 export class LibrariesService {
@@ -21,8 +23,29 @@ export class LibrariesService {
     }
   }
 
-  findAll() {
-    return this.prisma.curatedLibrary.findMany({ orderBy: { name: 'asc' } });
+  async findAll(query: ListLibrariesQueryDto = {}) {
+    const where: Prisma.CuratedLibraryWhereInput = query.q
+      ? {
+          OR: [
+            { name: { contains: query.q, mode: 'insensitive' } },
+            { author: { contains: query.q, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+
+    const { take, skip } = resolvePagination(query);
+
+    const [items, total] = await Promise.all([
+      this.prisma.curatedLibrary.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        take,
+        skip,
+      }),
+      this.prisma.curatedLibrary.count({ where }),
+    ]);
+
+    return { items, total };
   }
 
   async findOne(id: string) {

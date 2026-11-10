@@ -10,10 +10,13 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { generateShareSlug } from '../common/utils/share-slug.js';
 import { CreateProjectDto } from './dto/create-project.dto.js';
 import { UpdateProjectDto } from './dto/update-project.dto.js';
+import {
+  PaginationQueryDto,
+  resolvePagination,
+} from '../common/dto/pagination-query.dto.js';
 
 /** Intentos ante la (improbable) colisión de shareSlug por el índice único */
 const MAX_SLUG_ATTEMPTS = 5;
-const LIST_LIMIT = 20;
 
 const PROJECT_SUMMARY_SELECT = {
   id: true,
@@ -91,14 +94,26 @@ export class ProjectsService {
     );
   }
 
-  /** Listado: propios si hay sesión, públicos recientes si es anónimo */
-  async list(userId: string | null) {
-    return this.prisma.project.findMany({
-      where: userId ? { userId } : { isPublic: true },
-      orderBy: { updatedAt: 'desc' },
-      take: LIST_LIMIT,
-      select: PROJECT_SUMMARY_SELECT,
-    });
+  /** Listado paginado: propios si hay sesión, públicos recientes si es anónimo */
+  async list(userId: string | null, query: PaginationQueryDto = {}) {
+    const where: Prisma.ProjectWhereInput = userId
+      ? { userId }
+      : { isPublic: true };
+
+    const { take, skip } = resolvePagination(query);
+
+    const [items, total] = await Promise.all([
+      this.prisma.project.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        take,
+        skip,
+        select: PROJECT_SUMMARY_SELECT,
+      }),
+      this.prisma.project.count({ where }),
+    ]);
+
+    return { items, total };
   }
 
   /** Consulta por shareSlug: retorna circuitData (JSONB) y el código C++ */

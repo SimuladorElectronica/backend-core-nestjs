@@ -8,21 +8,25 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Query,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { Request } from 'express';
+import type { Request, Response } from 'express';
 import { SubmissionsService } from './submissions.service.js';
 import { CreateSubmissionDto } from './dto/create-submission.dto.js';
 import { UpdateSubmissionDto } from './dto/update-submission.dto.js';
+import { ListSubmissionsQueryDto } from './dto/list-submissions-query.dto.js';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
 
 interface AuthenticatedRequest extends Request {
@@ -54,11 +58,30 @@ export class SubmissionsController {
   @ApiOperation({
     summary: 'Listar entregas según el rol',
     description:
-      'El docente lista las entregas de sus guías; el alumno, solo las suyas.',
+      'El docente lista las entregas de sus guías; el alumno, solo las suyas. ' +
+      'Cada entrega incluye `guide` (id, title), `project` (id, title, shareSlug) ' +
+      'y `student` (id, name, email). Admite `?guideId=` y paginación con ' +
+      '`?take=`/`?skip=`; el total se devuelve en `X-Total-Count`.',
   })
-  @ApiOkResponse({ description: 'Entregas del usuario, más recientes primero' })
-  findAll(@Req() req: AuthenticatedRequest) {
-    return this.submissionsService.findAll(req.user);
+  @ApiHeader({
+    name: 'X-Total-Count',
+    description: 'Total de entregas que cumplen el filtro',
+  })
+  @ApiOkResponse({
+    description:
+      'Entregas del usuario con datos del alumno, más recientes primero',
+  })
+  async findAll(
+    @Req() req: AuthenticatedRequest,
+    @Query() query: ListSubmissionsQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { items, total } = await this.submissionsService.findAll(
+      req.user,
+      query,
+    );
+    res.setHeader('X-Total-Count', total);
+    return items;
   }
 
   @Get(':id')

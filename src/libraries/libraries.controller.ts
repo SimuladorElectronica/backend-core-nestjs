@@ -8,19 +8,24 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
+import type { Response } from 'express';
 import { LibrariesService } from './libraries.service.js';
 import { CreateLibraryDto } from './dto/create-library.dto.js';
 import { UpdateLibraryDto } from './dto/update-library.dto.js';
+import { ListLibrariesQueryDto } from './dto/list-libraries-query.dto.js';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
 import { RolesGuard } from '../guards/roles.guard.js';
 import { Roles } from '../decorators/roles.decorator.js';
@@ -31,10 +36,24 @@ export class LibrariesController {
   constructor(private readonly librariesService: LibrariesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar todas las librerías C++ curadas' })
+  @ApiOperation({
+    summary: 'Listar las librerías C++ curadas',
+    description:
+      'Público. Admite `?q=` para buscar por nombre o autor y `?take=`/`?skip=` ' +
+      'para paginar. El total de coincidencias se devuelve en `X-Total-Count`.',
+  })
+  @ApiHeader({
+    name: 'X-Total-Count',
+    description: 'Total de librerías que cumplen el filtro',
+  })
   @ApiOkResponse({ description: 'Listado público de librerías' })
-  findAll() {
-    return this.librariesService.findAll();
+  async findAll(
+    @Query() query: ListLibrariesQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { items, total } = await this.librariesService.findAll(query);
+    res.setHeader('X-Total-Count', total);
+    return items;
   }
 
   @Get(':id')

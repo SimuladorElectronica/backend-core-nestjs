@@ -27,6 +27,7 @@ model User {
   passwordHash String
   name         String
   role         Role     @default(STUDENT)
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 
   projects    Project[]

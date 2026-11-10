@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get, UseGuards, Request as ReqDecorator} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
+import { Role } from '@prisma/client';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -10,6 +11,8 @@ interface AuthenticatedRequest extends Request {
   user: {
     id: string;
     email: string;
+    name: string;
+    role: Role;
   };
 }
 

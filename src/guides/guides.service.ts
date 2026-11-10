@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateGuideDto } from './dto/create-guide.dto.js';
 import { UpdateGuideDto } from './dto/update-guide.dto.js';
+import { ListGuidesQueryDto } from './dto/list-guides-query.dto.js';
 
 /** Nombre y título del docente y del proyecto plantilla, sin exponer más datos */
 const GUIDE_INCLUDE = {
@@ -32,8 +33,9 @@ export class GuidesService {
     });
   }
 
-  findAll() {
+  findAll(query: ListGuidesQueryDto = {}) {
     return this.prisma.guide.findMany({
+      where: query.teacherId ? { teacherId: query.teacherId } : undefined,
       orderBy: { createdAt: 'desc' },
       include: GUIDE_INCLUDE,
     });

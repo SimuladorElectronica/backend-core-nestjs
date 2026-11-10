@@ -22,6 +22,7 @@ describe('SubmissionsService', () => {
       create: ReturnType<typeof vi.fn>;
       findMany: ReturnType<typeof vi.fn>;
       findUnique: ReturnType<typeof vi.fn>;
+      count: ReturnType<typeof vi.fn>;
       update: ReturnType<typeof vi.fn>;
       delete: ReturnType<typeof vi.fn>;
     };
@@ -35,6 +36,7 @@ describe('SubmissionsService', () => {
         create: vi.fn(),
         findMany: vi.fn(),
         findUnique: vi.fn(),
+        count: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
       },
@@ -114,6 +116,7 @@ describe('SubmissionsService', () => {
   describe('findAll', () => {
     it('el alumno lista solo sus entregas', async () => {
       prisma.submission.findMany.mockResolvedValue([]);
+      prisma.submission.count.mockResolvedValue(0);
 
       await service.findAll({ id: 'student-1', role: Role.STUDENT });
 
@@ -124,6 +127,7 @@ describe('SubmissionsService', () => {
 
     it('el docente lista las entregas de sus guías', async () => {
       prisma.submission.findMany.mockResolvedValue([]);
+      prisma.submission.count.mockResolvedValue(0);
 
       await service.findAll({ id: 'teacher-1', role: Role.TEACHER });
 
@@ -132,6 +136,43 @@ describe('SubmissionsService', () => {
           where: { guide: { teacherId: 'teacher-1' } },
         }),
       );
+    });
+
+    it('incluye los datos públicos del alumno (sin passwordHash)', async () => {
+      prisma.submission.findMany.mockResolvedValue([]);
+      prisma.submission.count.mockResolvedValue(0);
+
+      await service.findAll({ id: 'teacher-1', role: Role.TEACHER });
+
+      expect(prisma.submission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            student: { select: { id: true, name: true, email: true } },
+          }),
+        }),
+      );
+    });
+
+    it('filtra por guideId dentro del alcance del rol y pagina', async () => {
+      prisma.submission.findMany.mockResolvedValue([{ id: 's-1' }]);
+      prisma.submission.count.mockResolvedValue(1);
+
+      const result = await service.findAll(
+        { id: 'teacher-1', role: Role.TEACHER },
+        { guideId: dto.guideId, take: 10, skip: 5 },
+      );
+
+      expect(prisma.submission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            guide: { teacherId: 'teacher-1' },
+            guideId: dto.guideId,
+          },
+          take: 10,
+          skip: 5,
+        }),
+      );
+      expect(result).toEqual({ items: [{ id: 's-1' }], total: 1 });
     });
   });
 

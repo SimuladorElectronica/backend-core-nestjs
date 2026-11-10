@@ -24,13 +24,15 @@ src/
 │   └── dto/                 # create-guide.dto
 ├── submissions/             # Entregas de alumnos (Issue 3.4)
 │   └── dto/                 # create-submission.dto
-├── users/                   # Promoción de roles (solo ADMIN)
-│   └── dto/                 # update-role.dto
+├── users/                   # Directorio, promoción de roles y cuenta propia
+│   └── dto/                 # update-role, update-me, change-password, list-users
 ├── prisma/                  # PrismaService (conexión) + PrismaModule global
 ├── guards/                  # JwtAuthGuard, OptionalJwtAuthGuard, RolesGuard
 ├── strategies/              # JwtStrategy (valida el token y carga el usuario)
 ├── decorators/              # @Roles(...) → metadata para RolesGuard
-└── common/utils/            # generateShareSlug (slugs de 6 caracteres)
+└── common/
+    ├── dto/                 # PaginationQueryDto (take/skip) + resolvePagination
+    └── utils/               # generateShareSlug (slugs de 6 caracteres)
 
 prisma/
 ├── schema.prisma            # Modelos y enums
@@ -47,7 +49,7 @@ docs/                        # EVALUACION.md, ESTRUCTURA.md (este archivo)
 
 | Modelo | Campos clave | Relaciones |
 | :--- | :--- | :--- |
-| **User** | `email` único, `passwordHash` (Argon2id), `role` (`ADMIN` \| `TEACHER` \| `STUDENT`, por defecto `STUDENT`) | dueño de `projects`, `guides` (docente) y `submissions` (alumno) |
+| **User** | `email` único, `passwordHash` (Argon2id), `role` (`ADMIN` \| `TEACHER` \| `STUDENT`, por defecto `STUDENT`), `isActive` (baja lógica, por defecto `true`) | dueño de `projects`, `guides` (docente) y `submissions` (alumno) |
 | **Project** | `shareSlug` único (6 chars, enlace público), `circuitData` (JSONB), `code` (C++), `isPublic`, `userId` **nullable** (permite guardado anónimo) | puede ser plantilla de guías y entrega de alumnos |
 | **Guide** | `title`, `instructions`, `teacherId`, `starterProjectId` | `teacher` → User, `starterProject` → Project, tiene muchas `submissions` |
 | **Submission** | `guideId`, `studentId`, `projectId`, `submittedAt` | entrega de un proyecto propio a una guía |
@@ -66,14 +68,17 @@ docs/                        # EVALUACION.md, ESTRUCTURA.md (este archivo)
 | `OptionalJwtAuthGuard` | Acepta anónimo; si hay token, popula `req.user` |
 
 - El token se genera en `POST /auth/register` y `POST /auth/login` (payload: `sub` = id, `email`). El rol **no** viaja en el JWT: `JwtStrategy` lo carga desde la DB en cada request, por lo que una promoción vía `PATCH /users/:id/role` surte efecto sin volver a loguearse.
+- `JwtStrategy` devuelve `{ id, email, name, role }` y rechaza con **401** las cuentas con `isActive = false` (una baja invalida los tokens vigentes).
 - El registro crea usuarios `STUDENT` por defecto (`RegisterDto` no acepta `role`; con `ValidationPipe({ whitelist: true })` el campo se descarta); el `prisma/seed.ts` crea además un docente (`profe@demo.com`) y un administrador (`admin@demo.com`).
-- Roles: `ADMIN` gestiona librerías y promueve usuarios · `TEACHER` gestiona guías · `STUDENT` (por defecto) solo consume y entrega.
+- Roles: `ADMIN` gestiona librerías, usuarios y bajas · `TEACHER` gestiona guías · `STUDENT` (por defecto) solo consume y entrega.
 
 ---
 
 ## Endpoints
 
 Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER` · 👑 solo rol `ADMIN`
+
+Los listados paginados aceptan `?take=` (por defecto 20, máximo 100) y `?skip=`; el total de coincidencias se devuelve en el header **`X-Total-Count`** sin cambiar el body (sigue siendo un array).
 
 ### App
 
@@ -87,14 +92,14 @@ Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER` · 👑 
 | :--- | :--- | :--- | :--- |
 | POST | `/auth/register` | 🔓 | Registra un usuario (`name`, `email`, `password` ≥ 8) con hash Argon2id. Crea rol `STUDENT`. Retorna `access_token`. **409** si el email ya existe. |
 | POST | `/auth/login` | 🔓 | Autentica con `email` + `password` y retorna `access_token`. **401** con credenciales inválidas. |
-| GET | `/auth/me` | 🔒 | Retorna `{ id, email, role }` del usuario del token. **401** sin token. |
+| GET | `/auth/me` | 🔒 | Retorna `{ id, email, name, role }` del usuario del token. **401** sin token o si la cuenta fue desactivada. |
 
 ### Projects — tag `Projects`
 
 | Método | Ruta | Acceso | Descripción |
 | :--- | :--- | :--- | :--- |
 | POST | `/projects` | 🔒 opcional | Guarda un esquemático (`title`, `description`, `circuitData` JSONB, `code`, `isPublic`). Con token queda a nombre del usuario; sin token, **anónimo** (`userId` null). Genera un `shareSlug` de 6 caracteres (con reintento ante colisión) y retorna `shareUrl`. **201**. |
-| GET | `/projects` | 🔒 opcional | Con token: lista hasta 20 proyectos **propios** (más recientes primero). Sin token: lista los **públicos** recientes. |
+| GET | `/projects` | 🔒 opcional | Con token: lista los proyectos **propios**; sin token: los **públicos** recientes. Paginado con `?take=`/`?skip=` y total en `X-Total-Count`. |
 | GET | `/projects/:key` | 🔓 | Si `key` es un **shareSlug** (6 chars): retorna la vista pública (`circuitData` + `code`, sin `userId`); **404** si no existe o es privado. Si `key` es un **UUID**: detalle completo; los proyectos privados solo los ve su dueño (si no: **404**). Cualquier otro formato: **404**. |
 | PUT | `/projects/:id` | 🔒 | Actualiza los campos enviados de un proyecto **propio**. **404** si no existe; **403** si es anónimo o de otro usuario. |
 | DELETE | `/projects/:id` | 🔒 | Elimina un proyecto **propio**. **403** si es anónimo o ajeno. **409** si está vinculado a guías o entregas. |
@@ -103,7 +108,7 @@ Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER` · 👑 
 
 | Método | Ruta | Acceso | Descripción |
 | :--- | :--- | :--- | :--- |
-| GET | `/libraries` | 🔓 | Lista todas las librerías curadas (orden alfabético). |
+| GET | `/libraries` | 🔓 | Lista las librerías curadas (orden alfabético). Admite `?q=` (nombre o autor), `?take=`/`?skip=` y total en `X-Total-Count`. |
 | GET | `/libraries/:id` | 🔓 | Detalle de una librería por UUID. **404** si no existe. |
 | POST | `/libraries` | 👑 | Crea una librería curada (`name`, `headerFile`, `author`, `description`, `version`). **401** sin token · **403** STUDENT y TEACHER · **409** nombre duplicado. |
 | PUT | `/libraries/:id` | 👑 | Actualiza los campos enviados. **403** STUDENT y TEACHER · **404**. |
@@ -113,14 +118,19 @@ Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER` · 👑 
 
 | Método | Ruta | Acceso | Descripción |
 | :--- | :--- | :--- | :--- |
+| GET | `/users` | 👑 | Directorio de usuarios con `role`, `isActive` y sin `passwordHash`. Filtros `?role=`, `?search=` (nombre o email) y paginación `?take=`/`?skip=`; total en `X-Total-Count`. **401** sin token · **403** STUDENT/TEACHER · **400** filtros inválidos. |
+| GET | `/users/:id` | 👑 | Detalle de un usuario (incluye `isActive`). **400** UUID inválido · **401** sin token · **403** rol no permitido · **404** inexistente. |
+| PATCH | `/users/me` | 🔒 | Actualiza el **propio** perfil (`name` y/o `email`). **400** datos inválidos · **401** sin token · **409** email ya registrado. |
+| PATCH | `/users/me/password` | 🔒 | Cambia la propia contraseña (`currentPassword`, `newPassword` ≥ 8) verificando la actual y guardando la nueva con Argon2id. **400** contraseña actual incorrecta · **401** sin token. |
 | PATCH | `/users/:id/role` | 👑 | Cambia el rol de un usuario (`role`: `ADMIN` \| `TEACHER` \| `STUDENT`). Retorna `{ id, email, name, role }` sin `passwordHash`. **401** sin token · **403** STUDENT/TEACHER · **403** si un admin intenta cambiar su propio rol · **400** UUID inválido o rol inválido · **404** usuario inexistente. |
+| DELETE | `/users/:id` | 👑 | **Baja lógica** (`isActive = false`): invalida el login y los tokens vigentes. **400** UUID inválido · **401** sin token · **403** rol no permitido o intento de auto-desactivarse · **404** inexistente. |
 
 ### Guides — tag `Guides` (Issue 3.4)
 
 | Método | Ruta | Acceso | Descripción |
 | :--- | :--- | :--- | :--- |
 | POST | `/guides` | 🎓 | Crea una guía didáctica (`title`, `instructions`, `starterProjectId` UUID). Se asocia al docente del token y a un **proyecto plantilla** existente. **401** sin token · **403** STUDENT (criterio de aceptación) · **404** si el proyecto plantilla no existe · **400** si faltan campos o el UUID es inválido. |
-| GET | `/guides` | 🔓 | Lista las guías de más reciente a más antigua, incluyendo `teacher` (`id`, `name`) y `starterProject` (`id`, `title`, `shareSlug`). |
+| GET | `/guides` | 🔓 | Lista las guías de más reciente a más antigua, incluyendo `teacher` (`id`, `name`) y `starterProject` (`id`, `title`, `shareSlug`). Admite `?teacherId=<uuid>` para ver solo las de un docente. |
 | GET | `/guides/:id` | 🔓 | Detalle de la guía con instrucciones, docente y proyecto plantilla. **400** UUID inválido · **404** inexistente. |
 | PUT | `/guides/:id` | 🎓 | Actualiza los campos enviados de una guía **propia** (`title`, `instructions`, `starterProjectId`). **401** sin token · **403** STUDENT · **403** si la guía es de otro docente (ownership) · **404** si la guía o el nuevo proyecto plantilla no existen. |
 | DELETE | `/guides/:id` | 🎓 | Elimina una guía **propia** (sus entregas se borran en cascada). **401** sin token · **403** STUDENT · **403** si la guía es de otro docente (ownership) · **404**. |
@@ -130,8 +140,8 @@ Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER` · 👑 
 | Método | Ruta | Acceso | Descripción |
 | :--- | :--- | :--- | :--- |
 | POST | `/submissions` | 🔒 | Registra la entrega de un proyecto a una guía (`guideId`, `projectId`). El proyecto debe **pertenecer al usuario autenticado**. **401** sin token · **404** si la guía o el proyecto no existen · **403** si el proyecto es ajeno o anónimo · **400** si faltan campos. **201**. |
-| GET | `/submissions` | 🔒 | Lista entregas por rol: el **docente** ve las entregas de sus guías; el **alumno**, solo las suyas. Ordenadas de más reciente a más antigua. |
-| GET | `/submissions/:id` | 🔒 | Detalle de una entrega. Visible solo para el **alumno que entregó** y para el **docente de la guía**; para terceros retorna **404** (no filtra su existencia). |
+| GET | `/submissions` | 🔒 | Lista entregas por rol: el **docente** ve las entregas de sus guías; el **alumno**, solo las suyas. Ordenadas de más reciente a más antigua. Cada entrega incluye `guide` (`id`, `title`), `project` (`id`, `title`, `shareSlug`) y `student` (`id`, `name`, `email`, sin `passwordHash`). Admite `?guideId=` y `?take=`/`?skip=`; total en `X-Total-Count`. |
+| GET | `/submissions/:id` | 🔒 | Detalle de una entrega (mismas relaciones que el listado). Visible solo para el **alumno que entregó** y para el **docente de la guía**; para terceros retorna **404** (no filtra su existencia). |
 | PUT | `/submissions/:id` | 🔒 | Reemplaza el proyecto entregado (`projectId` nuevo). **403** si la entrega no es del solicitante o el proyecto nuevo no le pertenece · **404** si la entrega o el proyecto no existen. |
 | DELETE | `/submissions/:id` | 🔒 | Retira una entrega **propia**. **403** si pertenece a otro alumno · **404**. |
 
@@ -142,7 +152,7 @@ Leyenda: 🔓 público · 🔒 JWT requerido · 🎓 solo rol `TEACHER` · 👑 
 | Código | Cuándo |
 | :--- | :--- |
 | **400** | Validación de DTO (campo faltante, tipo inválido, UUID mal formado) |
-| **401** | Sin token, token inválido o credenciales incorrectas |
+| **401** | Sin token, token inválido, credenciales incorrectas o cuenta desactivada |
 | **403** | Rol no permitido (`@Roles`) o recurso de otro usuario |
 | **404** | Recurso inexistente (o proyecto privado ajeno, para no filtrar su existencia) |
 | **409** | Conflicto: email o nombre de librería duplicado, proyecto vinculado a guías |
