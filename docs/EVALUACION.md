@@ -3,20 +3,20 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación III (RepoSense + análisis de calidad + constancia). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-11-06.
+> Generado: 2026-11-11.
 
 ## 1. Veredicto
 
 | Aspecto | Resultado |
 |---|---|
 | Tipo de proyecto | backend |
-| Índice de calidad de servicios | **65/100** (mínimo 50) |
-| Criterios cumplidos | **11/15** |
+| Índice de calidad de servicios | **22/100** (mínimo 50) |
+| Criterios cumplidos | **10/15** |
 | Aprobado (semáforo) | **NO** |
-| Código (LOC) | 270 |
-| Archivos de código | 15 |
-| Tests (archivos) | 2 |
-| Cobertura de líneas | 11.7% (mínimo 80%) |
+| Código (LOC) | 2,161 |
+| Archivos de código | 51 |
+| Tests (archivos) | 18 |
+| Cobertura de líneas | 71.6% (mínimo 80%) |
 | Capas detectadas | ninguna |
 | Pushes directos a `main` (sin PR) | 0 |
 
@@ -26,7 +26,7 @@
 
 | Autor | Commits | Código (LOC) | Tests (LOC) | Docs (LOC) | Días activos | % del código |
 |---|---:|---:|---:|---:|---:|---:|
-| IvoGiovarruscio | 3 | 432 | 22 | 43 | 4 | 100% |
+| IvoGiovarruscio | 11 | 4,085 | 1,891 | 220 | 9 | 100% |
 
 > _El LOC de autoría lo calcula RepoSense sobre el historial y puede diferir del LOC de código del análisis de calidad (que mira solo el estado de `main`)._
 
@@ -36,7 +36,7 @@
 
 | Alumno | Sesiones | Cumplimiento | Pausa | Recencia | IC | Nivel | Para subir de nivel |
 |---|--:|--:|--:|--:|--:|--|--|
-| IvoGiovarruscio | 8 | 35% | 14 d | 43% | **29** | No aprueba | Cumplimiento 35% (mín. 50%); Recencia 43% (mín. 50%) |
+| IvoGiovarruscio | 12 | 47% | 14 d | 93% | **43** | No aprueba | Cumplimiento 47% (mín. 50%) |
 
 > Para aprobar el IC: **2 sesiones por semana** sostenidas, sin pausas mayores a **10 días** y con actividad en las **últimas 2 semanas**. Se excluyen merges, bots y al docente. Zona horaria UTC-3.
 
@@ -44,17 +44,21 @@
 
 Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuando el resultado está en rojo, se agregan preguntas para **investigar la causa** (no hay recetas: entender el porqué es parte de la evaluación).
 
-### 1. Índice de calidad de servicios (indice) — OK
+### 1. Índice de calidad de servicios (indice) — A REVISAR
 
 - **Qué mide:** Un resumen numérico (0-100) que combina todas las señales y métricas del análisis, con topes duros por duplicación.
 - **Por qué importa:** Ordena y prioriza la revisión: un índice bajo indica varias señales que conviene mirar juntas.
-- **Tu resultado:** índice **65/100** _(mínimo 50)_
+- **Tu resultado:** índice **22/100** _(mínimo 50)_
+- **Para investigar la causa:**
+    - ¿En qué momento del proyecto se concentraron los problemas (arranque, integración de partes, cierre)?
+    - ¿El índice bajó por muchas señales chicas o por una o dos graves?
+    - ¿Se revisó el código integrado después de unir el trabajo de cada integrante?
 
 ### 2. Duplicación (DRY) (duplicacion) — OK
 
 - **Qué mide:** Porcentaje de bloques de código repetidos (similitud) en el repositorio.
 - **Por qué importa:** Cada copia se mantiene por separado: un arreglo hay que repetirlo y los defectos se multiplican.
-- **Tu resultado:** **7.6%** de duplicación _(máximo 15%)_
+- **Tu resultado:** **8.8%** de duplicación _(máximo 15%)_
 
 ### 3. Secretos hardcodeados (SEC) — OK
 
@@ -102,29 +106,33 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 - **Por qué importa:** Son difíciles de leer, probar y reutilizar, y sus cambios tienen efectos inesperados.
 - **Tu resultado:** **0** componente(s) demasiado grande(s) _(máximo 1)_
 
-### 10. Baja cohesión (Coh) — OK
+### 10. Baja cohesión (Coh) — A REVISAR
 
 - **Qué mide:** Una clase o unidad cuyos métodos y campos no están relacionados entre sí.
 - **Por qué importa:** Una unidad que cambia por motivos distintos es frágil y cuesta entenderla.
-- **Tu resultado:** **0** unidad(es) con baja cohesión _(máximo 0)_
+- **Tu resultado:** **1** unidad(es) con baja cohesión _(máximo 0)_
+- **Para investigar la causa:**
+    - ¿La unidad agrupa cosas que en realidad pertenecen a lugares distintos?
+    - ¿Cambia por motivos diferentes según la tarea?
+    - ¿Se pensó su responsabilidad antes de escribirla, o se fue agregando?
 
 ### 11. Complejidad alta (Compl) — OK
 
 - **Qué mide:** Complejidad ciclomática: cantidad de caminos posibles dentro de una función (condicionales, bucles, casos).
 - **Por qué importa:** Muchos caminos = difícil de seguir y de probar; suelen esconderse casos sin cubrir.
-- **Tu resultado:** **0** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 270 LOC))_
+- **Tu resultado:** **2** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 2161 LOC))_
 
 ### 12. Funciones/métodos largos o con muchos parámetros (Tam) — OK
 
 - **Qué mide:** Tamaño de las funciones/métodos y cantidad de parámetros.
 - **Por qué importa:** Una función que hace varias cosas cuesta leerla, nombrarla y reutilizarla.
-- **Tu resultado:** **0** función/método(s) largos o con muchos parámetros _(máximo 10 por 1000 LOC)_
+- **Tu resultado:** **2** función/método(s) largos o con muchos parámetros _(máximo 10 por 1000 LOC)_
 
 ### 13. Acoplamiento alto (Acop) — A REVISAR
 
 - **Qué mide:** Cuánto depende una unidad de las partes internas de otra.
 - **Por qué importa:** Piezas muy enlazadas hacen que un cambio se propague y que sea difícil reemplazar partes.
-- **Tu resultado:** **2** unidad(es) con acoplamiento alto _(máximo 2 por 1000 LOC)_
+- **Tu resultado:** **20** unidad(es) con acoplamiento alto _(máximo 2 por 1000 LOC)_
 - **Para investigar la causa:**
     - ¿Las piezas se conocen en detalle entre sí (acceden a campos o estructuras internas)?
     - ¿El acceso a datos ocurre desde lugares que no son los responsables?
@@ -134,21 +142,17 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Porcentaje de líneas de código ejecutadas por la suite de tests (cobertura real, no cantidad de archivos de test).
 - **Por qué importa:** Un test que existe pero no ejecuta el código no protege de nada: la cobertura muestra qué partes quedan sin verificar.
-- **Tu resultado:** **11.7%** de líneas cubiertas · fuente: ejecución: vitest _(mínimo 80% de líneas)_
+- **Tu resultado:** **71.6%** de líneas cubiertas · fuente: ejecución: vitest _(mínimo 80% de líneas)_
 - **Para investigar la causa:**
     - ¿Qué módulos o ramas del sistema nunca se ejecutan en los tests?
     - ¿Los tests prueban el camino principal y los errores, o solo el caso feliz?
     - ¿La suite se puede correr en CI sin base de datos ni servicios externos?
 
-### 15. Endpoints del backend (EP) — A REVISAR
+### 15. Endpoints del backend (EP) — OK
 
 - **Qué mide:** Cantidad de endpoints (rutas HTTP) expuestos por el backend.
 - **Por qué importa:** El backend se mide por lo que expone: pocos endpoints sugiere poca funcionalidad de servicio.
-- **Tu resultado:** **4** endpoint(s) _(mínimo 5)_
-- **Para investigar la causa:**
-    - ¿Está claro el contrato del backend (qué operaciones ofrece)?
-    - ¿Cuántas operaciones del enunciado resuelve la API?
-    - ¿Hay operaciones que el frontend resuelve por fuera del backend?
+- **Tu resultado:** **30** endpoint(s) _(mínimo 5)_
 
 ## 5. Observaciones y qué falta
 
@@ -156,24 +160,23 @@ Criterios que hoy están en rojo y, para cada uno, una explicación breve de **c
 
 | Criterio | Resultado actual | Meta | Brecha | Cómo alcanzarlo |
 |---|---|---|---|---|
+| Índice de calidad de servicios (indice) | índice **22/100** | mínimo 50 | faltan 28 pts | El índice sólo penaliza lo que **excede** los umbrales de cada criterio: si tenés todo en verde, el índice es 100. Si está en rojo, mirá la columna **Brecha** y los criterios en rojo; corregí primero duplicación, SEC, SQL y capas. Meta del perfil exigente: ≥50. |
 | Separación en capas (capas) | **0** capa(s) detectada(s): ninguna | mínimo 2 capas (a partir de 150 LOC) | hoy 0; el mínimo es 2 | Separá el código en al menos 2 capas con responsabilidades claras: presentación (`routes/`, `controllers/`), lógica (`services/`, `domain/`) y datos (`models/`, `repositories/`). Mové cada archivo a la capa que le corresponde en vez de dejar todo en la raíz. |
-| Acoplamiento alto (Acop) | **2** unidad(es) con acoplamiento alto | máximo 2 por 1000 LOC | 2 hallazgo(s); el máximo para 270 LOC es 0.5 | Hacé que cada unidad dependa de una interfaz o de un módulo de servicio, no de los detalles internos de otra; evitá acceder a campos ajenos. Meta: ≤2 por 1000 LOC. |
-| Cobertura de tests (Cob) | **11.7%** de líneas cubiertas · fuente: ejecución: vitest | mínimo 80% de líneas | faltan 68.3 pts | Agregá o ampliá tests que ejecuten los módulos sin cubrir (camino principal y errores) y publicá el artefacto (`coverage/lcov.info`, `coverage-summary.json`, `coverage.xml` o `coverage.json`) o corré la suite con coverage. Meta: ≥80% de líneas. |
-| Endpoints del backend (EP) | **4** endpoint(s) | mínimo 5 | faltan 1 endpoint(s) | Implementá y exponé las operaciones del contrato que faltan (CRUD y consultas del enunciado) hasta llegar a 5 endpoints. |
+| Baja cohesión (Coh) | **1** unidad(es) con baja cohesión | máximo 0 | 1 clase(s) a separar | Separá la clase en unidades con una sola responsabilidad: si los métodos cambian por motivos distintos, son clases distintas. Meta: 0 clases con baja cohesión. |
+| Acoplamiento alto (Acop) | **20** unidad(es) con acoplamiento alto | máximo 2 por 1000 LOC | 20 hallazgo(s); el máximo para 2,161 LOC es 4.3 | Hacé que cada unidad dependa de una interfaz o de un módulo de servicio, no de los detalles internos de otra; evitá acceder a campos ajenos. Meta: ≤2 por 1000 LOC. |
+| Cobertura de tests (Cob) | **71.6%** de líneas cubiertas · fuente: ejecución: vitest | mínimo 80% de líneas | faltan 8.4 pts | Agregá o ampliá tests que ejecuten los módulos sin cubrir (camino principal y errores) y publicá el artefacto (`coverage/lcov.info`, `coverage-summary.json`, `coverage.xml` o `coverage.json`) o corré la suite con coverage. Meta: ≥80% de líneas. |
 
 > Empezá por las señales de seguridad (**SEC**, **SQL**) y por la **duplicación**: son las que más pesan en el índice y las más rápidas de verificar a ojo. Después de corregir, volvé a correr la medición: el semáforo se recalcula sobre `main`.
 
-> **Tests (informativo):** hoy tenés **2** archivo(s) de test; la meta es **5**, pero **no** es una compuerta del semáforo. Para acercarte, agregá tests de los flujos principales (servicios y endpoints) y corré la suite con coverage.
-
 ## 6. Actividad en clase (miércoles y viernes)
 
-> Se consideran las **23 clases** del período (miércoles y viernes; Nov 4 y 6 quedan afuera porque el calendario las marca sin clase). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
+> Se consideran las **23 clases** del período (miércoles y viernes, según `config/constancia.json`; feriados y semanas sin clase descontados). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
 
 ### IvoGiovarruscio
 
-**10/23 clases con actividad** · 18 commits · 7 merges
+**10/23 clases con actividad** · 18 commits · 6 merges
 
-| Fecha | Marca | Repositorios | Commits / merges |
+| Fecha | Actividad | Repositorios | Commits / merges |
 |---|:--:|---|--:|
 | 2026-08-14 | No | sin actividad | 0 / 0 |
 | 2026-08-19 | No | sin actividad | 0 / 0 |
@@ -196,7 +199,7 @@ Criterios que hoy están en rojo y, para cada uno, una explicación breve de **c
 | 2026-10-16 | **Sí** | simulador-frontend-react | 3 / 0 |
 | 2026-10-21 | **Sí** | backend-core-nestjs, simulador-frontend-react | 3 / 0 |
 | 2026-10-23 | No | sin actividad | 0 / 0 |
-| 2026-10-28 | **Sí** | backend-core-nestjs, simulador-frontend-react | 2 / 1 |
+| 2026-10-28 | **Sí** | backend-core-nestjs, simulador-frontend-react | 2 / 0 |
 | 2026-10-30 | No | sin actividad | 0 / 0 |
 
 ## 7. Anexo: dónde mirar
@@ -206,9 +209,30 @@ Archivos donde el análisis encontró cada señal en rojo (sin número de línea
 **Separación en capas (capas)** — 1 archivo(s):
 - `-`
 
-**Acoplamiento alto (Acop)** — 2 archivo(s):
+**Baja cohesión (Coh)** — 1 archivo(s):
+- `src/projects/projects.service.ts`
+
+**Acoplamiento alto (Acop)** — 20 archivo(s):
 - `src/auth/auth.controller.ts`
 - `src/auth/auth.service.ts`
+- `src/common/dto/pagination-query.dto.ts`
+- `src/guards/roles.guard.ts`
+- `src/guides/dto/create-guide.dto.ts`
+- `src/guides/guides.controller.ts`
+- `src/guides/guides.service.ts`
+- `src/libraries/dto/create-library.dto.ts`
+- `src/libraries/libraries.controller.ts`
+- `src/libraries/libraries.service.ts`
+- `src/projects/dto/create-project.dto.ts`
+- `src/projects/projects.controller.ts`
+- `src/projects/projects.service.ts`
+- `src/submissions/submissions.controller.ts`
+- `src/submissions/submissions.service.ts`
+- `src/users/dto/change-password.dto.ts`
+- `src/users/dto/list-users-query.dto.ts`
+- `src/users/dto/update-me.dto.ts`
+- `src/users/users.controller.ts`
+- `src/users/users.service.ts`
 
 ---
 _Informe generado por la cátedra. Los umbrales corresponden al perfil `exigente`. Ante dudas, revisá el archivo señalado y el criterio en `CRITERIOS-CALIDAD.md`._
