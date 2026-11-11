@@ -170,11 +170,11 @@ Criterios que hoy están en rojo y, para cada uno, una explicación breve de **c
 
 ## 6. Actividad en clase (miércoles y viernes)
 
-> Se consideran las **23 clases** del período (miércoles y viernes, según `config/constancia.json`; feriados y semanas sin clase descontados). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
+> Se consideran las **26 clases** del período (miércoles y viernes, según `config/constancia.json`; feriados y semanas sin clase descontados). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
 
 ### IvoGiovarruscio
 
-**10/23 clases con actividad** · 18 commits · 6 merges
+**12/26 clases con actividad** · 20 commits · 8 merges
 
 | Fecha | Actividad | Repositorios | Commits / merges |
 |---|:--:|---|--:|
@@ -201,6 +201,9 @@ Criterios que hoy están en rojo y, para cada uno, una explicación breve de **c
 | 2026-10-23 | No | sin actividad | 0 / 0 |
 | 2026-10-28 | **Sí** | backend-core-nestjs, simulador-frontend-react | 2 / 0 |
 | 2026-10-30 | No | sin actividad | 0 / 0 |
+| 2026-11-04 | No | sin actividad | 0 / 0 |
+| 2026-11-06 | **Sí** | simulador-frontend-react | 2 / 0 |
+| 2026-11-11 | **Sí** | dashboard-frontend-vue, simulador-frontend-react | 0 / 2 |
 
 ## 7. Anexo: dónde mirar
 
