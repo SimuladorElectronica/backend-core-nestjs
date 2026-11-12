@@ -30,9 +30,11 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 
-  projects    Project[]
-  guides      Guide[]      @relation("TeacherGuides")
-  submissions Submission[]
+  projects     Project[]
+  guides       Guide[]            @relation("TeacherGuides")
+  submissions  Submission[]
+  classrooms   Classroom[]        @relation("TeacherClassrooms")
+  enrollments  ClassroomStudent[]
 
   @@map("users")
 }
@@ -45,6 +47,7 @@ model Project {
   circuitData Json // Grafo de componentes 2D, coordenadas, cables y propiedades
   code        String  @db.Text // Código C++
   isPublic    Boolean @default(true)
+  isTemplate  Boolean @default(false) // Plantilla abrible sin sesión desde el simulador
 
   userId String? // Nullable para permitir guardado anónimo sin registro
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -55,7 +58,37 @@ model Project {
   starterForGuides Guide[]      @relation("StarterProject")
   submissions      Submission[]
 
+  @@index([isTemplate])
   @@map("projects")
+}
+
+model Classroom {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique // Código de unión para inscripción de alumnos (6 chars)
+
+  teacherId String
+  teacher   User     @relation("TeacherClassrooms", fields: [teacherId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  guides   Guide[]
+  students ClassroomStudent[]
+
+  @@map("classrooms")
+}
+
+model ClassroomStudent {
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  @@id([classroomId, studentId])
+  @@map("classroom_students")
 }
 
 model Guide {
@@ -68,6 +101,9 @@ model Guide {
 
   starterProjectId String
   starterProject   Project @relation("StarterProject", fields: [starterProjectId], references: [id])
+
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Restrict)
 
   createdAt   DateTime     @default(now())
   submissions Submission[]

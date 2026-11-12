@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { generateShareSlug } from '../../common/utils/share-slug.js';
 import { notFound, forbidden, conflict, internalError } from '../../common/errors.js';
@@ -23,6 +23,7 @@ const projectSummarySelect = {
   title: true,
   description: true,
   isPublic: true,
+  isTemplate: true,
   userId: true,
   createdAt: true,
   updatedAt: true,
@@ -45,6 +46,23 @@ const projectShareSelect = {
   isPublic: true,
   createdAt: true,
   updatedAt: true,
+} satisfies Prisma.ProjectSelect;
+
+/** vista pública de plantilla (listado): nunca expone datos del dueño */
+const projectTemplateListSelect = {
+  id: true,
+  shareSlug: true,
+  title: true,
+  description: true,
+  updatedAt: true,
+} satisfies Prisma.ProjectSelect;
+
+/** vista pública de plantilla (detalle): incluye el circuito y el código C++ */
+const projectTemplateDetailSelect = {
+  ...projectTemplateListSelect,
+  circuitData: true,
+  code: true,
+  createdAt: true,
 } satisfies Prisma.ProjectSelect;
 
 const uuidRegex =
@@ -129,6 +147,54 @@ export class ProjectsService {
     return project;
   }
 
+  /**
+   * listado público de plantillas para el simulador (sin sesión).
+   * `slug` es el shareSlug del proyecto; el original nunca se modifica.
+   */
+  async listTemplates() {
+    const templates = await this.prisma.project.findMany({
+      where: { isTemplate: true },
+      orderBy: { updatedAt: 'desc' },
+      select: projectTemplateListSelect,
+    });
+
+    return templates.map((template) => this.toTemplate(template));
+  }
+
+  /**
+   * detalle público de una plantilla por slug (shareSlug).
+   * si no existe o no está marcada como plantilla: 404 (no se revela su existencia).
+   */
+  async findTemplateBySlug(slug: string) {
+    const template = await this.prisma.project.findFirst({
+      where: { shareSlug: slug, isTemplate: true },
+      select: projectTemplateDetailSelect,
+    });
+
+    if (!template) {
+      throw notFound(`no existe una plantilla con el enlace "${slug}"`);
+    }
+
+    return this.toTemplate(template);
+  }
+
+  /** marca o desmarca un proyecto como plantilla: ADMIN o TEACHER dueño */
+  async setTemplate(
+    id: string,
+    isTemplate: boolean,
+    requester: { id: string; role: Role },
+  ) {
+    await this.assertTemplatePermission(id, requester);
+
+    const updated = await this.prisma.project.update({
+      where: { id },
+      data: { isTemplate },
+      select: projectDetailSelect,
+    });
+
+    return { ...updated, shareUrl: this.buildShareUrl(updated.shareSlug) };
+  }
+
   /** detalle por id (uuid); el detalle privado solo lo ve su dueño */
   async getById(id: string, requesterId: string | null) {
     const project = await this.prisma.project.findUnique({
@@ -195,6 +261,40 @@ export class ProjectsService {
     }
 
     return { message: 'proyecto eliminado', id };
+  }
+
+  private async assertTemplatePermission(
+    id: string,
+    requester: { id: string; role: Role },
+  ) {
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      select: { id: true, userId: true },
+    });
+
+    if (!project) {
+      throw notFound(`no existe el proyecto "${id}"`);
+    }
+
+    const isAdmin = requester.role === Role.ADMIN;
+    const isOwnerTeacher =
+      requester.role === Role.TEACHER &&
+      project.userId !== null &&
+      project.userId === requester.id;
+
+    if (!isAdmin && !isOwnerTeacher) {
+      throw forbidden(
+        'solo un administrador o el docente dueño puede marcar plantillas',
+      );
+    }
+
+    return project;
+  }
+
+  /** expone el shareSlug como `slug` en las respuestas públicas de plantillas */
+  private toTemplate<T extends { shareSlug: string }>(project: T) {
+    const { shareSlug, ...rest } = project;
+    return { ...rest, slug: shareSlug };
   }
 
   private async assertOwnership(id: string, requesterId: string) {

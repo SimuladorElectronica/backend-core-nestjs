@@ -23,6 +23,7 @@ describe('Guides & Submissions (e2e)', () => {
   let studentToken: string;
   let otherStudentToken: string;
   let teacherId: string;
+  let classroomId: string;
 
   const createdUserIds: string[] = [];
   const createdProjectIds: string[] = [];
@@ -103,12 +104,29 @@ describe('Guides & Submissions (e2e)', () => {
     otherTeacherToken = await login(otherTeacher.email);
     studentToken = await login(student.email);
     otherStudentToken = await login(otherStudent.email);
+
+    // El docente crea un aula y el alumno se inscribe con su código
+    const classroomRes = await request(app.getHttpServer())
+      .post('/classrooms')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ name: 'E2E Aula Guías' })
+      .expect(201);
+    classroomId = classroomRes.body.id as string;
+
+    await request(app.getHttpServer())
+      .post('/classrooms/join')
+      .set('Authorization', `Bearer ${studentToken}`)
+      .send({ code: classroomRes.body.code as string })
+      .expect(201);
   });
 
   afterAll(async () => {
     if (prisma) {
-      // Las guías borradas eliminan sus entregas en cascada
+      // Las guías borradas eliminan sus entregas en cascada; las aulas, sus inscripciones
       await prisma.guide.deleteMany({ where: { id: { in: createdGuideIds } } });
+      if (classroomId) {
+        await prisma.classroom.deleteMany({ where: { id: classroomId } });
+      }
       await prisma.project.deleteMany({
         where: { id: { in: createdProjectIds } },
       });
@@ -148,7 +166,7 @@ describe('Guides & Submissions (e2e)', () => {
     it('sin token retorna 401', async () => {
       await request(app.getHttpServer())
         .post('/guides')
-        .send({ ...GUIDE, starterProjectId })
+        .send({ ...GUIDE, starterProjectId, classroomId })
         .expect(401);
     });
 
@@ -156,7 +174,7 @@ describe('Guides & Submissions (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/guides')
         .set('Authorization', `Bearer ${studentToken}`)
-        .send({ ...GUIDE, starterProjectId })
+        .send({ ...GUIDE, starterProjectId, classroomId })
         .expect(403);
 
       expect(res.body.error).toBe('Forbidden');
@@ -166,7 +184,7 @@ describe('Guides & Submissions (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/guides')
         .set('Authorization', `Bearer ${teacherToken}`)
-        .send({ ...GUIDE, starterProjectId })
+        .send({ ...GUIDE, starterProjectId, classroomId })
         .expect(201);
 
       createdGuideIds.push(res.body.id as string);
@@ -175,6 +193,7 @@ describe('Guides & Submissions (e2e)', () => {
       expect(res.body.instructions).toBe(GUIDE.instructions);
       expect(res.body.starterProject.id).toBe(starterProjectId);
       expect(res.body.teacher.id).toBeDefined();
+      expect(res.body.classroom.id).toBe(classroomId);
     });
 
     it('retorna 404 si el proyecto plantilla no existe', async () => {
@@ -184,8 +203,39 @@ describe('Guides & Submissions (e2e)', () => {
         .send({
           ...GUIDE,
           starterProjectId: '00000000-0000-4000-8000-000000000000',
+          classroomId,
         })
         .expect(404);
+    });
+
+    it('retorna 404 si el aula no existe', async () => {
+      await request(app.getHttpServer())
+        .post('/guides')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({
+          ...GUIDE,
+          starterProjectId,
+          classroomId: '00000000-0000-4000-8000-000000000000',
+        })
+        .expect(404);
+    });
+
+    it('retorna 403 si el aula pertenece a otro docente', async () => {
+      const foreignClassroom = await request(app.getHttpServer())
+        .post('/classrooms')
+        .set('Authorization', `Bearer ${otherTeacherToken}`)
+        .send({ name: 'E2E Aula ajena' })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/guides')
+        .set('Authorization', `Bearer ${teacherToken}`)
+        .send({ ...GUIDE, starterProjectId, classroomId: foreignClassroom.body.id })
+        .expect(403);
+
+      await prisma.classroom.delete({
+        where: { id: foreignClassroom.body.id as string },
+      });
     });
 
     it('retorna 400 si faltan campos obligatorios', async () => {
@@ -202,9 +252,14 @@ describe('Guides & Submissions (e2e)', () => {
   });
 
   describe('GET /guides', () => {
-    it('el listado es público (sin token)', async () => {
+    it('sin token retorna 401', async () => {
+      await request(app.getHttpServer()).get('/guides').expect(401);
+    });
+
+    it('el alumno inscripto lista las guías de su aula', async () => {
       const res = await request(app.getHttpServer())
         .get('/guides')
+        .set('Authorization', `Bearer ${studentToken}`)
         .expect(200);
 
       expect(Array.isArray(res.body)).toBe(true);
@@ -213,10 +268,22 @@ describe('Guides & Submissions (e2e)', () => {
       ).toBe(true);
     });
 
-    it('GET /guides?teacherId= filtra las guías del docente', async () => {
+    it('otro alumno (no inscripto) no ve las guías de esa aula', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/guides')
+        .set('Authorization', `Bearer ${otherStudentToken}`)
+        .expect(200);
+
+      expect(
+        res.body.some((g: { title: string }) => g.title === GUIDE.title),
+      ).toBe(false);
+    });
+
+    it('GET /guides?teacherId= filtra dentro del alcance del alumno', async () => {
       const res = await request(app.getHttpServer())
         .get('/guides')
         .query({ teacherId })
+        .set('Authorization', `Bearer ${studentToken}`)
         .expect(200);
 
       expect(res.body.length).toBeGreaterThan(0);
@@ -231,31 +298,64 @@ describe('Guides & Submissions (e2e)', () => {
       await request(app.getHttpServer())
         .get('/guides')
         .query({ teacherId: 'no-uuid' })
+        .set('Authorization', `Bearer ${studentToken}`)
         .expect(400);
     });
 
-    it('GET /guides/:id retorna la guía con instrucciones', async () => {
-      const list = await request(app.getHttpServer()).get('/guides').expect(200);
+    it('GET /guides con classroomId inválido retorna 400', async () => {
+      await request(app.getHttpServer())
+        .get('/guides')
+        .query({ classroomId: 'no-uuid' })
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(400);
+    });
+
+    it('GET /guides/:id retorna la guía con instrucciones y su aula', async () => {
+      const list = await request(app.getHttpServer())
+        .get('/guides')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(200);
       const guide = list.body.find(
         (g: { title: string }) => g.title === GUIDE.title,
       );
 
       const res = await request(app.getHttpServer())
         .get(`/guides/${guide.id}`)
+        .set('Authorization', `Bearer ${studentToken}`)
         .expect(200);
 
       expect(res.body.instructions).toBe(GUIDE.instructions);
       expect(res.body.starterProject).toBeDefined();
+      expect(res.body.classroom.id).toBe(classroomId);
+    });
+
+    it('GET /guides/:id para un alumno no inscripto retorna 404', async () => {
+      const list = await request(app.getHttpServer())
+        .get('/guides')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(200);
+      const guide = list.body.find(
+        (g: { title: string }) => g.title === GUIDE.title,
+      );
+
+      await request(app.getHttpServer())
+        .get(`/guides/${guide.id}`)
+        .set('Authorization', `Bearer ${otherStudentToken}`)
+        .expect(404);
     });
 
     it('GET /guides/:id con UUID inexistente retorna 404', async () => {
       await request(app.getHttpServer())
         .get('/guides/00000000-0000-4000-8000-000000000000')
+        .set('Authorization', `Bearer ${studentToken}`)
         .expect(404);
     });
 
     it('GET /guides/:id con formato inválido retorna 400', async () => {
-      await request(app.getHttpServer()).get('/guides/no-uuid').expect(400);
+      await request(app.getHttpServer())
+        .get('/guides/no-uuid')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(400);
     });
   });
 
@@ -276,6 +376,7 @@ describe('Guides & Submissions (e2e)', () => {
           title: 'E2E Guía editable',
           instructions: 'Instrucciones originales',
           starterProjectId,
+          classroomId,
         })
         .expect(201);
 
@@ -342,7 +443,10 @@ describe('Guides & Submissions (e2e)', () => {
     });
 
     it('GET /guides/:id después de borrar retorna 404', async () => {
-      await request(app.getHttpServer()).get(`/guides/${guideId}`).expect(404);
+      await request(app.getHttpServer())
+        .get(`/guides/${guideId}`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .expect(404);
     });
   });
 
@@ -351,7 +455,7 @@ describe('Guides & Submissions (e2e)', () => {
     let studentProjectId: string;
 
     beforeAll(async () => {
-      const list = await request(app.getHttpServer()).get('/guides').expect(200);
+      const list = await request(app.getHttpServer()).get('/guides').set('Authorization', `Bearer ${studentToken}`).expect(200);
       guideId = list.body.find(
         (g: { title: string }) => g.title === GUIDE.title,
       ).id as string;
@@ -378,6 +482,19 @@ describe('Guides & Submissions (e2e)', () => {
       expect(res.body.guide.id).toBe(guideId);
       expect(res.body.project.id).toBe(studentProjectId);
       expect(res.body.studentId).toBeDefined();
+    });
+
+    it('un alumno no inscripto en el aula no puede entregar (403)', async () => {
+      const otherStudentProject = await createProject(
+        otherStudentToken,
+        'E2E Proyecto de otro alumno no inscripto',
+      );
+
+      await request(app.getHttpServer())
+        .post('/submissions')
+        .set('Authorization', `Bearer ${otherStudentToken}`)
+        .send({ guideId, projectId: otherStudentProject })
+        .expect(403);
     });
 
     it('con el proyecto de otro usuario retorna 403', async () => {
@@ -418,7 +535,7 @@ describe('Guides & Submissions (e2e)', () => {
     let guideId: string;
 
     beforeAll(async () => {
-      const list = await request(app.getHttpServer()).get('/guides').expect(200);
+      const list = await request(app.getHttpServer()).get('/guides').set('Authorization', `Bearer ${studentToken}`).expect(200);
       guideId = list.body.find(
         (g: { title: string }) => g.title === GUIDE.title,
       ).id as string;

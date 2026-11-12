@@ -1,13 +1,18 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { GuidesService } from './guides.service.js';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { CreateGuideDto } from './dto/create-guide.dto.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { CreateGuideDto } from '../dto/create-guide.dto.js';
 
 const dto: CreateGuideDto = {
   title: 'Práctica 1 - LED parpadeante',
   instructions: 'Conectá un LED al pin 13 y hacélo parpadear cada segundo.',
   starterProjectId: '3f1c8f9e-2a41-4f6b-9d5e-7c2b1a0f4e8d',
+  classroomId: '8c1f4a2e-6b3d-4e8f-a1c7-9d0e2f3b5a61',
 };
+
+const teacherUser = { id: 'teacher-1', role: Role.TEACHER };
+const adminUser = { id: 'admin-1', role: Role.ADMIN };
 
 describe('GuidesService', () => {
   let service: GuidesService;
@@ -20,6 +25,12 @@ describe('GuidesService', () => {
       delete: ReturnType<typeof vi.fn>;
     };
     project: {
+      findUnique: ReturnType<typeof vi.fn>;
+    };
+    classroom: {
+      findUnique: ReturnType<typeof vi.fn>;
+    };
+    classroomStudent: {
       findUnique: ReturnType<typeof vi.fn>;
     };
   };
@@ -36,13 +47,23 @@ describe('GuidesService', () => {
       project: {
         findUnique: vi.fn(),
       },
+      classroom: {
+        findUnique: vi.fn(),
+      },
+      classroomStudent: {
+        findUnique: vi.fn(),
+      },
     };
     service = new GuidesService(prisma as unknown as PrismaService);
   });
 
   describe('create', () => {
-    it('crea una guía vinculada al docente y al proyecto plantilla', async () => {
+    it('crea una guía vinculada a la docente, el aula y el proyecto plantilla', async () => {
       prisma.project.findUnique.mockResolvedValue({ id: dto.starterProjectId });
+      prisma.classroom.findUnique.mockResolvedValue({
+        id: dto.classroomId,
+        teacherId: 'teacher-1',
+      });
       prisma.guide.create.mockImplementation(({ data }: { data: object }) =>
         Promise.resolve({ id: 'g-1', ...data }),
       );
@@ -56,6 +77,7 @@ describe('GuidesService', () => {
             title: dto.title,
             instructions: dto.instructions,
             starterProjectId: dto.starterProjectId,
+            classroomId: dto.classroomId,
             teacherId: 'teacher-1',
           }),
         }),
@@ -70,37 +92,131 @@ describe('GuidesService', () => {
       );
       expect(prisma.guide.create).not.toHaveBeenCalled();
     });
+
+    it('lanza 404 si el aula no existe', async () => {
+      prisma.project.findUnique.mockResolvedValue({ id: dto.starterProjectId });
+      prisma.classroom.findUnique.mockResolvedValue(null);
+
+      await expect(service.create(dto, 'teacher-1')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.guide.create).not.toHaveBeenCalled();
+    });
+
+    it('lanza 403 si el aula pertenece a otro docente', async () => {
+      prisma.project.findUnique.mockResolvedValue({ id: dto.starterProjectId });
+      prisma.classroom.findUnique.mockResolvedValue({
+        id: dto.classroomId,
+        teacherId: 'otro-teacher',
+      });
+
+      await expect(service.create(dto, 'teacher-1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(prisma.guide.create).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {
-    it('lista guías ordenadas de más reciente a más antigua', async () => {
+    it('admin ve todas las guías', async () => {
       prisma.guide.findMany.mockResolvedValue([]);
 
-      await service.findAll();
+      await service.findAll({}, adminUser);
 
       expect(prisma.guide.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { createdAt: 'desc' } }),
+        expect.objectContaining({
+          where: {},
+          orderBy: { createdAt: 'desc' },
+        }),
+      );
+    });
+
+    it('docente ve las guías de las aulas que creó', async () => {
+      prisma.guide.findMany.mockResolvedValue([]);
+
+      await service.findAll({}, teacherUser);
+
+      expect(prisma.guide.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { classroom: { teacherId: 'teacher-1' } },
+        }),
+      );
+    });
+
+    it('alumno ve las guías de las aulas en las que está inscripto', async () => {
+      prisma.guide.findMany.mockResolvedValue([]);
+
+      await service.findAll({}, { id: 's-1', role: Role.STUDENT });
+
+      expect(prisma.guide.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { classroom: { students: { some: { studentId: 's-1' } } } },
+        }),
+      );
+    });
+
+    it('filtro por aula y docente dentro del alcance', async () => {
+      prisma.guide.findMany.mockResolvedValue([]);
+
+      await service.findAll(
+        { teacherId: 'teacher-9', classroomId: dto.classroomId },
+        teacherUser,
+      );
+
+      expect(prisma.guide.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            classroom: { teacherId: 'teacher-1' },
+            teacherId: 'teacher-9',
+            classroomId: dto.classroomId,
+          },
+        }),
       );
     });
   });
 
   describe('findOne', () => {
-    it('retorna la guía con docente y proyecto plantilla', async () => {
-      const guide = { id: 'g-1', title: dto.title };
+    it('admin ve cualquier guía', async () => {
+      const guide = { id: 'g-1', teacherId: 'teacher-9', classroomId: dto.classroomId };
       prisma.guide.findUnique.mockResolvedValue(guide);
 
-      const result = await service.findOne('g-1');
+      await expect(service.findOne('g-1', adminUser)).resolves.toEqual(guide);
+    });
 
-      expect(result).toEqual(guide);
-      expect(prisma.guide.findUnique).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'g-1' } }),
-      );
+    it('el docente dueño ve su guía', async () => {
+      const guide = { id: 'g-1', teacherId: 'teacher-1', classroomId: dto.classroomId };
+      prisma.guide.findUnique.mockResolvedValue(guide);
+
+      await expect(service.findOne('g-1', teacherUser)).resolves.toEqual(guide);
+    });
+
+    it('un alumno inscripto en el aula ve la guía', async () => {
+      const guide = { id: 'g-1', teacherId: 'teacher-9', classroomId: dto.classroomId };
+      prisma.guide.findUnique.mockResolvedValue(guide);
+      prisma.classroomStudent.findUnique.mockResolvedValue({
+        classroomId: dto.classroomId,
+        studentId: 's-1',
+      });
+
+      await expect(
+        service.findOne('g-1', { id: 's-1', role: Role.STUDENT }),
+      ).resolves.toEqual(guide);
+    });
+
+    it('un alumno NO inscripto no puede ver la guía (404)', async () => {
+      const guide = { id: 'g-1', teacherId: 'teacher-9', classroomId: dto.classroomId };
+      prisma.guide.findUnique.mockResolvedValue(guide);
+      prisma.classroomStudent.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.findOne('g-1', { id: 's-1', role: Role.STUDENT }),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('lanza 404 si la guía no existe', async () => {
       prisma.guide.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne('faltante')).rejects.toThrow(
+      await expect(service.findOne('faltante', adminUser)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -191,6 +307,22 @@ describe('GuidesService', () => {
           'teacher-1',
         ),
       ).rejects.toThrow(NotFoundException);
+      expect(prisma.guide.update).not.toHaveBeenCalled();
+    });
+
+    it('rechaza mover la guía a un aula ajena (403)', async () => {
+      prisma.guide.findUnique.mockResolvedValue({
+        id: 'g-1',
+        teacherId: 'teacher-1',
+      });
+      prisma.classroom.findUnique.mockResolvedValue({
+        id: dto.classroomId,
+        teacherId: 'otro-teacher',
+      });
+
+      await expect(
+        service.update('g-1', { classroomId: dto.classroomId }, 'teacher-1'),
+      ).rejects.toThrow(ForbiddenException);
       expect(prisma.guide.update).not.toHaveBeenCalled();
     });
   });

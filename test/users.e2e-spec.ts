@@ -36,6 +36,7 @@ describe('Users (e2e)', () => {
   const createdUserIds: string[] = [];
   const createdProjectIds: string[] = [];
   const createdGuideIds: string[] = [];
+  const createdClassroomIds: string[] = [];
 
   const PASSWORD = 'Password123!';
   const NEW_PASSWORD = 'NuevaPassword456!';
@@ -128,6 +129,9 @@ describe('Users (e2e)', () => {
   afterAll(async () => {
     if (prisma) {
       await prisma.guide.deleteMany({ where: { id: { in: createdGuideIds } } });
+      await prisma.classroom.deleteMany({
+        where: { id: { in: createdClassroomIds } },
+      });
       await prisma.project.deleteMany({
         where: { id: { in: createdProjectIds } },
       });
@@ -231,6 +235,15 @@ describe('Users (e2e)', () => {
 
       createdProjectIds.push(project.body.id as string);
 
+      // El promovido (ya TEACHER) crea su propio aula para la guía
+      const classroom = await request(app.getHttpServer())
+        .post('/classrooms')
+        .set('Authorization', `Bearer ${promotableToken}`)
+        .send({ name: 'E2E Users Aula promovido' })
+        .expect(201);
+
+      createdClassroomIds.push(classroom.body.id as string);
+
       const res = await request(app.getHttpServer())
         .post('/guides')
         .set('Authorization', `Bearer ${promotableToken}`)
@@ -238,6 +251,7 @@ describe('Users (e2e)', () => {
           title: 'E2E Guía creada tras la promoción',
           instructions: 'Instrucciones de la guía creada tras la promoción.',
           starterProjectId: project.body.id as string,
+          classroomId: classroom.body.id as string,
         })
         .expect(201);
 
@@ -262,7 +276,7 @@ describe('Users (e2e)', () => {
     it('ADMIN lista usuarios con X-Total-Count y sin passwordHash', async () => {
       const res = await request(app.getHttpServer())
         .get('/users')
-        .query({ take: 10, skip: 0 })
+        .query({ take: 100, skip: 0 })
         .set('Authorization', `Bearer ${adminToken}`)
         .expect(200);
 
@@ -458,7 +472,7 @@ describe('Users (e2e)', () => {
         .expect(200);
 
       expect(res.body).toEqual({
-        message: 'Usuario desactivado',
+        message: 'usuario desactivado',
         id: deletableId,
       });
 

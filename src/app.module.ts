@@ -8,6 +8,7 @@ import { LibrariesModule } from './libraries/libraries.module.js';
 import { GuidesModule } from './guides/guides.module.js';
 import { SubmissionsModule } from './submissions/submissions.module.js';
 import { UsersModule } from './users/users.module.js';
+import { ClassroomsModule } from './classrooms/classrooms.module.js';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module.js';
     GuidesModule,
     SubmissionsModule,
     UsersModule,
+    ClassroomsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
