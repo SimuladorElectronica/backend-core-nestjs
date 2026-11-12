@@ -1,37 +1,26 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsBoolean,
-  IsNotEmpty,
-  IsObject,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+  BooleanQueryField,
+  ObjectField,
+  OptionalTextField,
+  TextField,
+} from '../../common/decorators/fields.js';
 
 export class CreateProjectDto {
-  @ApiPropertyOptional({
-    description: 'Título del proyecto',
-    example: 'Amplificador operacional',
-    default: 'Circuito sin título',
+  @OptionalTextField({
+    description: 'título del proyecto',
+    example: 'amplificador operacional',
+    maxLength: 200,
   })
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(200)
   title?: string;
 
-  @ApiPropertyOptional({
-    description: 'Descripción opcional del circuito',
-    example: 'Práctica 3 - fuente de tensión',
+  @OptionalTextField({
+    description: 'descripción opcional del circuito',
+    example: 'práctica 3 - fuente de tensión',
+    maxLength: 2000,
   })
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000)
   description?: string;
 
-  @ApiProperty({
-    description:
-      'Estructura JSONB del esquemático: grafo de componentes 2D, coordenadas, cables y propiedades',
+  @ObjectField({
     example: {
       components: [
         { id: 'r1', type: 'resistor', x: 120, y: 80, value: 1000 },
@@ -39,25 +28,16 @@ export class CreateProjectDto {
       ],
       wires: [{ from: 'v1:+', to: 'r1:1' }],
     },
+    description: 'estructura jsonb: componentes, coordenadas, cables y propiedades',
   })
-  @IsObject()
-  @IsNotEmpty()
   circuitData: Record<string, unknown>;
 
-  @ApiProperty({
-    description: 'Código C++ (Arduino Core) asociado al circuito',
-    example: 'void setup() { pinMode(13, OUTPUT); }',
+  @TextField({
+    description: 'código c++ (arduino core) asociado al circuito',
+    example: 'void setup() {}',
   })
-  @IsString()
-  @IsNotEmpty()
   code: string;
 
-  @ApiPropertyOptional({
-    description: 'Si es falso, el proyecto no se puede abrir por shareSlug',
-    example: true,
-    default: true,
-  })
-  @IsOptional()
-  @IsBoolean()
+  @BooleanQueryField({ example: true })
   isPublic?: boolean;
 }

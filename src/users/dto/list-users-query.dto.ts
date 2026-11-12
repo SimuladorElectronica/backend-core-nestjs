@@ -1,24 +1,19 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { OptionalTextField, EnumOptionalField } from '../../common/decorators/fields.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 
 export class ListUsersQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({
-    description: 'Filtra por rol',
+  @EnumOptionalField({
     enum: Role,
-    example: Role.STUDENT,
+    example: 'STUDENT',
+    description: 'filtra por rol',
   })
-  @IsOptional()
-  @IsEnum(Role)
   role?: Role;
 
-  @ApiPropertyOptional({
-    description: 'Busca por nombre o email (sin distinguir mayúsculas)',
+  @OptionalTextField({
+    description: 'busca por nombre o email (sin distinguir mayúsculas)',
     example: 'alumno',
+    maxLength: 100,
   })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
   search?: string;
 }

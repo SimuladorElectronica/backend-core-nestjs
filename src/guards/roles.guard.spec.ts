@@ -3,7 +3,7 @@ import { ForbiddenException, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Role } from '@prisma/client';
 import { RolesGuard } from './roles.guard.js';
-import { Roles, ROLES_KEY } from '../decorators/roles.decorator.js';
+import { Roles, rolesKey } from '../decorators/roles.decorator.js';
 
 describe('RolesGuard', () => {
   const handler = () => undefined;
@@ -57,7 +57,7 @@ describe('RolesGuard', () => {
 
     decorator(target);
 
-    expect(ROLES_KEY).toBe('roles');
-    expect(Reflect.getMetadata(ROLES_KEY, target)).toEqual([Role.TEACHER]);
+    expect(rolesKey).toBe('roles');
+    expect(Reflect.getMetadata(rolesKey, target)).toEqual([Role.TEACHER]);
   });
 });

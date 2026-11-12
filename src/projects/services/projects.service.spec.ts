@@ -5,8 +5,8 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ProjectsService } from './projects.service.js';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { CreateProjectDto } from './dto/create-project.dto.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { CreateProjectDto } from '../dto/create-project.dto.js';
 
 const uniqueViolation = () =>
   new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
@@ -15,8 +15,8 @@ const uniqueViolation = () =>
   });
 
 const baseDto: CreateProjectDto = {
-  title: 'Práctica 1',
-  description: 'Divisor de tensión',
+  title: 'PrÃ¡ctica 1',
+  description: 'Divisor de tensiÃ³n',
   circuitData: { components: [{ id: 'r1', type: 'resistor' }], wires: [] },
   code: 'void setup() {}',
 };
@@ -49,7 +49,7 @@ describe('ProjectsService', () => {
   });
 
   describe('create', () => {
-    it('genera un shareSlug de 6 caracteres y guarda con userId nulo (anónimo)', async () => {
+    it('genera un shareSlug de 6 caracteres y guarda con userId nulo (anÃ³nimo)', async () => {
       prisma.project.create.mockImplementation(({ data }: { data: object }) =>
         Promise.resolve({ id: 'p-1', ...data }),
       );
@@ -70,7 +70,7 @@ describe('ProjectsService', () => {
       );
     });
 
-    it('reintenta la generación del slug ante una colisión del índice único', async () => {
+    it('reintenta la generaciÃ³n del slug ante una colisiÃ³n del Ã­ndice Ãºnico', async () => {
       prisma.project.create
         .mockRejectedValueOnce(uniqueViolation())
         .mockImplementationOnce(({ data }: { data: object }) =>
@@ -95,7 +95,7 @@ describe('ProjectsService', () => {
     const sharedProject = {
       id: 'p-1',
       shareSlug: 'a9f3b2',
-      title: 'Práctica 1',
+      title: 'PrÃ¡ctica 1',
       description: null,
       circuitData: { components: [], wires: [] },
       code: 'void setup() {}',
@@ -104,7 +104,7 @@ describe('ProjectsService', () => {
       updatedAt: new Date(),
     };
 
-    it('retorna circuitData (JSONB) y el código C++ del proyecto público', async () => {
+    it('retorna circuitData (JSONB) y el cÃ³digo C++ del proyecto pÃºblico', async () => {
       prisma.project.findUnique.mockResolvedValue(sharedProject);
 
       const result = await service.findBySlug('a9f3b2');
@@ -139,7 +139,7 @@ describe('ProjectsService', () => {
   });
 
   describe('list', () => {
-    it('lista los proyectos propios cuando hay sesión', async () => {
+    it('lista los proyectos propios cuando hay sesiÃ³n', async () => {
       prisma.project.findMany.mockResolvedValue([]);
       prisma.project.count.mockResolvedValue(0);
 
@@ -150,7 +150,7 @@ describe('ProjectsService', () => {
       );
     });
 
-    it('lista proyectos públicos para usuarios anónimos', async () => {
+    it('lista proyectos pÃºblicos para usuarios anÃ³nimos', async () => {
       prisma.project.findMany.mockResolvedValue([]);
       prisma.project.count.mockResolvedValue(0);
 
@@ -161,7 +161,7 @@ describe('ProjectsService', () => {
       );
     });
 
-    it('aplica la paginación por offset y retorna el total', async () => {
+    it('aplica la paginaciÃ³n por offset y retorna el total', async () => {
       prisma.project.findMany.mockResolvedValue([{ id: 'p-1' }]);
       prisma.project.count.mockResolvedValue(42);
 
@@ -175,7 +175,7 @@ describe('ProjectsService', () => {
   });
 
   describe('update', () => {
-    it('rechaza la edición de un proyecto anónimo (sin dueño)', async () => {
+    it('rechaza la ediciÃ³n de un proyecto anÃ³nimo (sin dueÃ±o)', async () => {
       prisma.project.findUnique.mockResolvedValue({
         id: 'p-1',
         userId: null,
@@ -187,7 +187,7 @@ describe('ProjectsService', () => {
       expect(prisma.project.update).not.toHaveBeenCalled();
     });
 
-    it('rechaza la edición de un proyecto de otro usuario', async () => {
+    it('rechaza la ediciÃ³n de un proyecto de otro usuario', async () => {
       prisma.project.findUnique.mockResolvedValue({
         id: 'p-1',
         userId: 'otro-usuario',
@@ -205,7 +205,7 @@ describe('ProjectsService', () => {
       prisma.project.update.mockResolvedValue({
         id: 'p-1',
         shareSlug: 'a9f3b2',
-        title: 'Nuevo título',
+        title: 'Nuevo tÃ­tulo',
         description: null,
         circuitData: {},
         code: 'void setup() {}',
@@ -217,14 +217,14 @@ describe('ProjectsService', () => {
 
       const result = await service.update(
         'p-1',
-        { title: 'Nuevo título' },
+        { title: 'Nuevo tÃ­tulo' },
         'user-1',
       );
 
       expect(prisma.project.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'p-1' },
-          data: { title: 'Nuevo título' },
+          data: { title: 'Nuevo tÃ­tulo' },
         }),
       );
       expect(result.shareUrl).toContain('a9f3b2');
@@ -247,7 +247,7 @@ describe('ProjectsService', () => {
       });
     });
 
-    it('retorna 409 si el proyecto está vinculado a guías o entregas', async () => {
+    it('retorna 409 si el proyecto estÃ¡ vinculado a guÃ­as o entregas', async () => {
       prisma.project.findUnique.mockResolvedValue({
         id: 'p-1',
         userId: 'user-1',

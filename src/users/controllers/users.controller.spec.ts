@@ -1,10 +1,13 @@
 import 'reflect-metadata';
 import { Role } from '@prisma/client';
-import { UsersController } from './users.controller.js';
-import { UsersService } from './users.service.js';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
-import { RolesGuard } from '../guards/roles.guard.js';
-import { ROLES_KEY } from '../decorators/roles.decorator.js';
+import {
+  UsersReadController,
+  UsersWriteController,
+} from './users.controller.js';
+import { UsersService } from '../services/users.service.js';
+import { JwtAuthGuard } from '../../guards/jwt-auth.guard.js';
+import { RolesGuard } from '../../guards/roles.guard.js';
+import { rolesKey } from '../../decorators/roles.decorator.js';
 
 /** Clave interna de NestJS para la metadata de @UseGuards */
 const GUARDS_METADATA = '__guards__';
@@ -17,7 +20,8 @@ const ADMIN = {
 };
 
 describe('UsersController', () => {
-  let controller: UsersController;
+  let read: UsersReadController;
+  let write: UsersWriteController;
   let service: {
     findAll: ReturnType<typeof vi.fn>;
     findOne: ReturnType<typeof vi.fn>;
@@ -36,7 +40,8 @@ describe('UsersController', () => {
       changePassword: vi.fn(),
       deactivate: vi.fn(),
     };
-    controller = new UsersController(service as unknown as UsersService);
+    read = new UsersReadController(service as unknown as UsersService);
+    write = new UsersWriteController(service as unknown as UsersService);
   });
 
   const guardsOf = (handler: unknown): unknown[] =>
@@ -44,11 +49,11 @@ describe('UsersController', () => {
 
   describe('GET /users', () => {
     it('exige JWT y rol ADMIN', () => {
-      const guards = guardsOf(controller.findAll);
+      const guards = guardsOf(read.findAll);
 
       expect(guards).toContain(JwtAuthGuard);
       expect(guards).toContain(RolesGuard);
-      expect(Reflect.getMetadata(ROLES_KEY, controller.findAll)).toEqual([
+      expect(Reflect.getMetadata(rolesKey, read.findAll)).toEqual([
         Role.ADMIN,
       ]);
     });
@@ -58,7 +63,7 @@ describe('UsersController', () => {
       const res = { setHeader: vi.fn() };
       service.findAll.mockResolvedValue({ items, total: 7 });
 
-      const result = await controller.findAll(
+      const result = await read.findAll(
         { role: Role.STUDENT },
         res as never,
       );
@@ -70,31 +75,31 @@ describe('UsersController', () => {
   });
 
   describe('GET /users/:id', () => {
-    it('exige JWT y rol ADMIN y delega la búsqueda', async () => {
-      const guards = guardsOf(controller.findOne);
+    it('exige JWT y rol ADMIN y delega la bÃºsqueda', async () => {
+      const guards = guardsOf(read.findOne);
       expect(guards).toContain(JwtAuthGuard);
       expect(guards).toContain(RolesGuard);
-      expect(Reflect.getMetadata(ROLES_KEY, controller.findOne)).toEqual([
+      expect(Reflect.getMetadata(rolesKey, read.findOne)).toEqual([
         Role.ADMIN,
       ]);
 
       service.findOne.mockResolvedValue({ id: 'u-1' });
 
-      await expect(controller.findOne('u-1')).resolves.toEqual({ id: 'u-1' });
+      await expect(read.findOne('u-1')).resolves.toEqual({ id: 'u-1' });
       expect(service.findOne).toHaveBeenCalledWith('u-1');
     });
   });
 
   describe('PATCH /users/me', () => {
-    it('exige JWT sin restricción de rol y usa el id del token', async () => {
-      expect(guardsOf(controller.updateMe)).toContain(JwtAuthGuard);
+    it('exige JWT sin restricciÃ³n de rol y usa el id del token', async () => {
+      expect(guardsOf(write.updateMe)).toContain(JwtAuthGuard);
       expect(
-        Reflect.getMetadata(ROLES_KEY, controller.updateMe),
+        Reflect.getMetadata(rolesKey, write.updateMe),
       ).toBeUndefined();
 
       service.updateMe.mockResolvedValue({ id: 'admin-1' });
 
-      await controller.updateMe({ name: 'Nuevo' }, { user: ADMIN } as never);
+      await write.updateMe({ name: 'Nuevo' }, ADMIN);
 
       expect(service.updateMe).toHaveBeenCalledWith('admin-1', {
         name: 'Nuevo',
@@ -104,18 +109,18 @@ describe('UsersController', () => {
 
   describe('PATCH /users/me/password', () => {
     it('exige JWT y delega con el id del token', async () => {
-      expect(guardsOf(controller.changePassword)).toContain(JwtAuthGuard);
+      expect(guardsOf(write.changePassword)).toContain(JwtAuthGuard);
       expect(
-        Reflect.getMetadata(ROLES_KEY, controller.changePassword),
+        Reflect.getMetadata(rolesKey, write.changePassword),
       ).toBeUndefined();
 
       service.changePassword.mockResolvedValue({
-        message: 'Contraseña actualizada',
+        message: 'ContraseÃ±a actualizada',
       });
 
-      await controller.changePassword(
+      await write.changePassword(
         { currentPassword: 'Vieja123!', newPassword: 'Nueva123!' },
-        { user: ADMIN } as never,
+        ADMIN,
       );
 
       expect(service.changePassword).toHaveBeenCalledWith('admin-1', {
@@ -127,16 +132,16 @@ describe('UsersController', () => {
 
   describe('PATCH /users/:id/role', () => {
     it('exige JWT y rol ADMIN', () => {
-      const guards = guardsOf(controller.updateRole);
+      const guards = guardsOf(write.updateRole);
 
       expect(guards).toContain(JwtAuthGuard);
       expect(guards).toContain(RolesGuard);
-      expect(Reflect.getMetadata(ROLES_KEY, controller.updateRole)).toEqual([
+      expect(Reflect.getMetadata(rolesKey, write.updateRole)).toEqual([
         Role.ADMIN,
       ]);
     });
 
-    it('delega la promoción con el id del admin autenticado', async () => {
+    it('delega la promociÃ³n con el id del admin autenticado', async () => {
       const updated = {
         id: 'user-1',
         email: 'alumno@test.com',
@@ -145,10 +150,10 @@ describe('UsersController', () => {
       };
       service.updateRole.mockResolvedValue(updated);
 
-      const result = await controller.updateRole(
+      const result = await write.updateRole(
         'user-1',
         { role: Role.TEACHER },
-        { user: ADMIN } as never,
+        ADMIN,
       );
 
       expect(result).toEqual(updated);
@@ -162,20 +167,20 @@ describe('UsersController', () => {
 
   describe('DELETE /users/:id', () => {
     it('exige JWT y rol ADMIN y delega con el id del admin', async () => {
-      const guards = guardsOf(controller.deactivate);
+      const guards = guardsOf(write.deactivate);
 
       expect(guards).toContain(JwtAuthGuard);
       expect(guards).toContain(RolesGuard);
-      expect(Reflect.getMetadata(ROLES_KEY, controller.deactivate)).toEqual([
+      expect(Reflect.getMetadata(rolesKey, write.deactivate)).toEqual([
         Role.ADMIN,
       ]);
 
       service.deactivate.mockResolvedValue({
-        message: 'Usuario desactivado',
+        message: 'usuario desactivado',
         id: 'user-1',
       });
 
-      await controller.deactivate('user-1', { user: ADMIN } as never);
+      await write.deactivate('user-1', ADMIN);
 
       expect(service.deactivate).toHaveBeenCalledWith('user-1', 'admin-1');
     });

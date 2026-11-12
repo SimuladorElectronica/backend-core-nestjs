@@ -1,19 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { EmailField, TextField } from '../../common/decorators/fields.js';
 
 export class RegisterDto {
-  @ApiProperty({ example: 'Juan Pérez' })
-  @IsString()
-  @IsNotEmpty()
+  @TextField({ example: 'juan pérez', maxLength: 120 })
   name: string;
 
-  @ApiProperty({ example: 'estudiante@escuela.edu.ar' })
-  @IsEmail()
-  @IsNotEmpty()
+  @EmailField({ example: 'estudiante@escuela.edu.ar' })
   email: string;
 
-  @ApiProperty({ example: 'PasswordSeguro123!' })
-  @IsString()
-  @MinLength(8)
+  /** bcrypt/argon2 hacen su propio largo máximo; se exige un mínimo sano */
+  @TextField({ example: 'password_segura', minLength: 8 })
   password: string;
 }

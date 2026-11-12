@@ -1,14 +1,11 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { OptionalTextField } from '../../common/decorators/fields.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
 
 export class ListLibrariesQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({
-    description: 'Busca por nombre de librería o autor',
-    example: 'LiquidCrystal',
+  @OptionalTextField({
+    description: 'busca por nombre de librería o autor',
+    example: 'liquidcrystal',
+    maxLength: 100,
   })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
   q?: string;
 }

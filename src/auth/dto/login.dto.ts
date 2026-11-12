@@ -1,14 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { EmailField, TextField } from '../../common/decorators/fields.js';
 
 export class LoginDto {
-  @ApiProperty({ example: 'estudiante@escuela.edu.ar' })
-  @IsEmail()
-  @IsNotEmpty()
+  @EmailField({ example: 'estudiante@escuela.edu.ar' })
   email: string;
 
-  @ApiProperty({ example: 'PasswordSeguro123!' })
-  @IsString()
-  @IsNotEmpty()
+  @TextField({ example: 'password_segura' })
   password: string;
 }

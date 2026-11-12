@@ -1,23 +1,16 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  OptionalEmailField,
+  OptionalTextField,
+} from '../../common/decorators/fields.js';
 
 export class UpdateMeDto {
-  @ApiPropertyOptional({
-    description: 'Nombre visible del usuario',
-    example: 'Juan Pérez',
+  @OptionalTextField({
+    description: 'nombre visible del usuario',
+    example: 'juan pérez',
+    maxLength: 120,
   })
-  @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(120)
   name?: string;
 
-  @ApiPropertyOptional({
-    description: 'Correo electrónico (único en el sistema)',
-    example: 'juan.perez@escuela.edu.ar',
-  })
-  @IsOptional()
-  @IsEmail()
-  @MaxLength(255)
+  @OptionalEmailField({ example: 'juan@escuela.edu.ar' })
   email?: string;
 }
