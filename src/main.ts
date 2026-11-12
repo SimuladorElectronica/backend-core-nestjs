@@ -3,8 +3,16 @@ import { AppModule } from './app.module.js';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 
-async function bootstrap() {
+export async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // CORS: permite al frontend (Vite en localhost:5173+, verificado con Origin)
+  // realizar peticiones con Authorization/Content-Type sin preflight bloqueado
+  app.enableCors({
+    origin: true, // refleja el origin solicitante (ej: http://localhost:5174)
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
+  });
 
   // `transform` permite convertir los query params (?take=20) a number
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
@@ -55,4 +63,7 @@ async function bootstrap() {
 
   await app.listen(3000);
 }
-bootstrap();
+
+if (process.env.NODE_ENV !== 'test') {
+  bootstrap();
+}

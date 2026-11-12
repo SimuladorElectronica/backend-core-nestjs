@@ -1,9 +1,10 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { RegisterDto } from './dto/register.dto.js';
-import { LoginDto } from './dto/login.dto.js';
 import * as argon2 from 'argon2';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { conflict, unauthorized } from '../../common/errors.js';
+import { RegisterDto } from '../dto/register.dto.js';
+import { LoginDto } from '../dto/login.dto.js';
 
 @Injectable()
 export class AuthService {
@@ -18,7 +19,7 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('El correo ya está registrado');
+      throw conflict('el correo ya está registrado');
     }
 
     const hashedPassword = await argon2.hash(dto.password, {
@@ -35,7 +36,7 @@ export class AuthService {
 
     const token = await this.generateJwt(user.id, user.email);
     return {
-      message: 'Usuario registrado exitosamente',
+      message: 'usuario registrado exitosamente',
       access_token: token,
     };
   }
@@ -46,13 +47,16 @@ export class AuthService {
     });
 
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw unauthorized('credenciales inválidas');
     }
 
-    // Verificación de la contraseña con el hash almacenado
-    const isPasswordValid = await argon2.verify(user.passwordHash, dto.password);
+    // verificación de la contraseña con el hash almacenado
+    const isPasswordValid = await argon2.verify(
+      user.passwordHash,
+      dto.password,
+    );
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Credenciales inválidas');
+      throw unauthorized('credenciales inválidas');
     }
 
     const token = await this.generateJwt(user.id, user.email);

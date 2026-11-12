@@ -1,43 +1,30 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { TextField } from '../../common/decorators/fields.js';
 
 export class CreateLibraryDto {
-  @ApiProperty({
-    description: 'Nombre único de la librería',
-    example: 'LiquidCrystal_I2C',
+  @TextField({
+    description: 'nombre único de la librería',
+    example: 'liquidcrystal_i2c',
+    maxLength: 100,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
   name: string;
 
-  @ApiProperty({
-    description: 'Archivo de cabecera incluido',
-    example: 'LiquidCrystal_I2C.h',
+  @TextField({
+    description: 'archivo de cabecera incluido',
+    example: 'liquidcrystal_i2c.h',
+    maxLength: 100,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
   headerFile: string;
 
-  @ApiProperty({ example: 'Marcos Breuer' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(100)
+  @TextField({ example: 'marcos breuer', maxLength: 100 })
   author: string;
 
-  @ApiProperty({
-    description: 'Descripción de uso de la librería',
-    example: 'Pantallas LCD con interface I2C',
+  @TextField({
+    description: 'descripción de uso de la librería',
+    example: 'pantallas lcd con interface i2c',
+    maxLength: 2000,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(2000)
   description: string;
 
-  @ApiProperty({ example: '1.0.0' })
-  @IsString()
-  @MinLength(1)
-  @MaxLength(20)
+  @TextField({ example: '1.0.0', minLength: 1, maxLength: 20 })
   version: string;
 }

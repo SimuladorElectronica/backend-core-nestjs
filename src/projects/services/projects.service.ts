@@ -1,24 +1,23 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { generateShareSlug } from '../common/utils/share-slug.js';
-import { CreateProjectDto } from './dto/create-project.dto.js';
-import { UpdateProjectDto } from './dto/update-project.dto.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { generateShareSlug } from '../../common/utils/share-slug.js';
+import { notFound, forbidden, conflict, internalError } from '../../common/errors.js';
+import { isForeignKeyViolation, isUniqueViolation } from '../../common/prisma-errors.js';
+import { CreateProjectDto } from '../dto/create-project.dto.js';
+import { UpdateProjectDto } from '../dto/update-project.dto.js';
 import {
   PaginationQueryDto,
   resolvePagination,
-} from '../common/dto/pagination-query.dto.js';
+} from '../../common/dto/pagination-query.dto.js';
 
-/** Intentos ante la (improbable) colisión de shareSlug por el índice único */
-const MAX_SLUG_ATTEMPTS = 5;
+type projectWhereInput = Prisma.ProjectWhereInput;
+type projectUpdateInput = Prisma.ProjectUpdateInput;
 
-const PROJECT_SUMMARY_SELECT = {
+/** intentos ante la colisión de shareSlug por el índice único */
+const maxSlugAttempts = 5;
+
+const projectSummarySelect = {
   id: true,
   shareSlug: true,
   title: true,
@@ -29,14 +28,14 @@ const PROJECT_SUMMARY_SELECT = {
   updatedAt: true,
 } satisfies Prisma.ProjectSelect;
 
-const PROJECT_DETAIL_SELECT = {
-  ...PROJECT_SUMMARY_SELECT,
+const projectDetailSelect = {
+  ...projectSummarySelect,
   circuitData: true,
   code: true,
 } satisfies Prisma.ProjectSelect;
 
-/** Vista pública del enlace compartido: nunca expone el userId */
-const PROJECT_SHARE_SELECT = {
+/** vista pública del enlace compartido: nunca expone el userId */
+const projectShareSelect = {
   id: true,
   shareSlug: true,
   title: true,
@@ -48,27 +47,27 @@ const PROJECT_SHARE_SELECT = {
   updatedAt: true,
 } satisfies Prisma.ProjectSelect;
 
-const UUID_REGEX =
+const uuidRegex =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SHARE_SLUG_REGEX = /^[a-z0-9]{6}$/;
+const shareSlugRegex = /^[a-z0-9]{6}$/;
 
 @Injectable()
 export class ProjectsService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Guardado anónimo (userId null) o autenticado.
-   * Genera un shareSlug de 6 caracteres con reintento ante colisión.
+   * guardado anónimo (userId null) o autenticado.
+   * genera un shareSlug de 6 caracteres con reintento ante colisión.
    */
   async create(dto: CreateProjectDto, userId: string | null) {
     let lastCollision: unknown = null;
 
-    for (let attempt = 1; attempt <= MAX_SLUG_ATTEMPTS; attempt++) {
+    for (let attempt = 1; attempt <= maxSlugAttempts; attempt++) {
       try {
         const project = await this.prisma.project.create({
           data: {
             shareSlug: generateShareSlug(),
-            title: dto.title ?? 'Circuito sin título',
+            title: dto.title ?? 'circuito sin título',
             description: dto.description,
             circuitData: dto.circuitData as Prisma.InputJsonValue,
             code: dto.code,
@@ -79,7 +78,7 @@ export class ProjectsService {
 
         return { ...project, shareUrl: this.buildShareUrl(project.shareSlug) };
       } catch (error) {
-        if (this.isUniqueViolation(error) && attempt < MAX_SLUG_ATTEMPTS) {
+        if (isUniqueViolation(error) && attempt < maxSlugAttempts) {
           lastCollision = error;
           continue;
         }
@@ -87,16 +86,16 @@ export class ProjectsService {
       }
     }
 
-    throw new InternalServerErrorException(
+    throw internalError(
       lastCollision
-        ? 'No se pudo generar un shareSlug único'
-        : 'No se pudo guardar el proyecto',
+        ? 'no se pudo generar un shareSlug único'
+        : 'no se pudo guardar el proyecto',
     );
   }
 
-  /** Listado paginado: propios si hay sesión, públicos recientes si es anónimo */
+  /** listado paginado: propios si hay sesión, públicos recientes si es anónimo */
   async list(userId: string | null, query: PaginationQueryDto = {}) {
-    const where: Prisma.ProjectWhereInput = userId
+    const where: projectWhereInput = userId
       ? { userId }
       : { isPublic: true };
 
@@ -108,7 +107,7 @@ export class ProjectsService {
         orderBy: { updatedAt: 'desc' },
         take,
         skip,
-        select: PROJECT_SUMMARY_SELECT,
+        select: projectSummarySelect,
       }),
       this.prisma.project.count({ where }),
     ]);
@@ -116,42 +115,53 @@ export class ProjectsService {
     return { items, total };
   }
 
-  /** Consulta por shareSlug: retorna circuitData (JSONB) y el código C++ */
+  /** consulta pública por shareSlug: retorna el jsonb y el código c++ */
   async findBySlug(shareSlug: string) {
     const project = await this.prisma.project.findUnique({
       where: { shareSlug },
-      select: PROJECT_SHARE_SELECT,
+      select: projectShareSelect,
     });
 
     if (!project || !project.isPublic) {
-      throw new NotFoundException(
-        `No existe un proyecto público con el enlace "${shareSlug}"`,
-      );
+      throw notFound(`no existe un proyecto público con el enlace "${shareSlug}"`);
     }
 
     return project;
   }
 
-  /** Detalle por UUID (el request privado solo lo ve su dueño) */
+  /** detalle por id (uuid); el detalle privado solo lo ve su dueño */
   async getById(id: string, requesterId: string | null) {
     const project = await this.prisma.project.findUnique({
       where: { id },
-      select: PROJECT_DETAIL_SELECT,
+      select: projectDetailSelect,
     });
 
     const isOwner = requesterId !== null && project?.userId === requesterId;
 
     if (!project || (!project.isPublic && !isOwner)) {
-      throw new NotFoundException(`No existe el proyecto "${id}"`);
+      throw notFound(`no existe el proyecto "${id}"`);
     }
 
     return project;
   }
 
+  /** resuelve el identificador de la ruta (shareSlug o uuid) según corresponda */
+  async findByKey(key: string, requesterId: string | null) {
+    if (shareSlugRegex.test(key)) {
+      return this.findBySlug(key);
+    }
+
+    if (uuidRegex.test(key)) {
+      return this.getById(key, requesterId);
+    }
+
+    throw notFound(`no existe un proyecto con el identificador "${key}"`);
+  }
+
   async update(id: string, dto: UpdateProjectDto, requesterId: string) {
     await this.assertOwnership(id, requesterId);
 
-    const data: Prisma.ProjectUpdateInput = {};
+    const data: projectUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.circuitData !== undefined) {
@@ -163,7 +173,7 @@ export class ProjectsService {
     const updated = await this.prisma.project.update({
       where: { id },
       data,
-      select: PROJECT_DETAIL_SELECT,
+      select: projectDetailSelect,
     });
 
     return { ...updated, shareUrl: this.buildShareUrl(updated.shareSlug) };
@@ -175,28 +185,16 @@ export class ProjectsService {
     try {
       await this.prisma.project.delete({ where: { id } });
     } catch (error) {
-      // Vinculado a guías/entregas (FK Restrict)
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2003'
-      ) {
-        throw new ConflictException(
-          'El proyecto está vinculado a guías o entregas y no puede eliminarse',
+      // vinculado a guías o entregas (fk restrict)
+      if (isForeignKeyViolation(error)) {
+        throw conflict(
+          'el proyecto está vinculado a guías o entregas y no puede eliminarse',
         );
       }
       throw error;
     }
 
-    return { message: 'Proyecto eliminado', id };
-  }
-
-  /** El shareSlug es el identificador público; el UUID privado requiere dueño */
-  isShareSlug(key: string): boolean {
-    return SHARE_SLUG_REGEX.test(key);
-  }
-
-  isUuid(key: string): boolean {
-    return UUID_REGEX.test(key);
+    return { message: 'proyecto eliminado', id };
   }
 
   private async assertOwnership(id: string, requesterId: string) {
@@ -206,27 +204,18 @@ export class ProjectsService {
     });
 
     if (!project) {
-      throw new NotFoundException(`No existe el proyecto "${id}"`);
+      throw notFound(`no existe el proyecto "${id}"`);
     }
 
     if (project.userId === null) {
-      throw new ForbiddenException(
-        'Los proyectos anónimos son de solo lectura',
-      );
+      throw forbidden('los proyectos anónimos son de solo lectura');
     }
 
     if (project.userId !== requesterId) {
-      throw new ForbiddenException('No tenés permiso sobre este proyecto');
+      throw forbidden('no tenés permiso sobre este proyecto');
     }
 
     return project;
-  }
-
-  private isUniqueViolation(error: unknown): boolean {
-    return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    );
   }
 
   private buildShareUrl(shareSlug: string): string {

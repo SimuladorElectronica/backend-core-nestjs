@@ -5,7 +5,7 @@ import { GuidesService } from './guides.service.js';
 import { CreateGuideDto } from './dto/create-guide.dto.js';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard.js';
 import { RolesGuard } from '../guards/roles.guard.js';
-import { ROLES_KEY } from '../decorators/roles.decorator.js';
+import { rolesKey } from '../decorators/roles.decorator.js';
 
 /** Clave interna de NestJS para la metadata de @UseGuards */
 const GUARDS_METADATA = '__guards__';
@@ -47,7 +47,7 @@ describe('GuidesController', () => {
       expect(guards).toContain(JwtAuthGuard);
       expect(guards).toContain(RolesGuard);
       // RolesGuard (roles.guard.spec) lanza 403 ante un STUDENT
-      expect(Reflect.getMetadata(ROLES_KEY, controller.create)).toEqual([
+      expect(Reflect.getMetadata(rolesKey, controller.create)).toEqual([
         Role.TEACHER,
       ]);
     });
@@ -71,7 +71,7 @@ describe('GuidesController', () => {
   describe('GET /guides', () => {
     it('el listado no declara roles (lectura sin restricción de rol)', () => {
       expect(
-        Reflect.getMetadata(ROLES_KEY, controller.findAll),
+        Reflect.getMetadata(rolesKey, controller.findAll),
       ).toBeUndefined();
     });
 
@@ -108,7 +108,7 @@ describe('GuidesController', () => {
 
       expect(guards).toContain(JwtAuthGuard);
       expect(guards).toContain(RolesGuard);
-      expect(Reflect.getMetadata(ROLES_KEY, controller.update)).toEqual([
+      expect(Reflect.getMetadata(rolesKey, controller.update)).toEqual([
         Role.TEACHER,
       ]);
     });
@@ -140,7 +140,7 @@ describe('GuidesController', () => {
 
       expect(guards).toContain(JwtAuthGuard);
       expect(guards).toContain(RolesGuard);
-      expect(Reflect.getMetadata(ROLES_KEY, controller.remove)).toEqual([
+      expect(Reflect.getMetadata(rolesKey, controller.remove)).toEqual([
         Role.TEACHER,
       ]);
     });

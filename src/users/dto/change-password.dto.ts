@@ -1,22 +1,18 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { TextField } from '../../common/decorators/fields.js';
 
 export class ChangePasswordDto {
-  @ApiProperty({
-    description: 'Contraseña actual del usuario autenticado',
-    example: 'Password123!',
+  @TextField({
+    description: 'contraseña actual del usuario autenticado',
+    example: 'password_actual',
+    maxLength: 128,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(128)
   currentPassword: string;
 
-  @ApiProperty({
-    description: 'Nueva contraseña (mínimo 8 caracteres)',
-    example: 'NuevaPassword456!',
+  @TextField({
+    description: 'nueva contraseña (mínimo 8 caracteres)',
+    example: 'password_nueva',
+    minLength: 8,
+    maxLength: 128,
   })
-  @IsString()
-  @MinLength(8)
-  @MaxLength(128)
   newPassword: string;
 }

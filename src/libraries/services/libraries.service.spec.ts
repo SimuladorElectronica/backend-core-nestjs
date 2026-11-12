@@ -1,8 +1,8 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { LibrariesService } from './libraries.service.js';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { CreateLibraryDto } from './dto/create-library.dto.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { CreateLibraryDto } from '../dto/create-library.dto.js';
 
 const dto: CreateLibraryDto = {
   name: 'LiquidCrystal_I2C',
@@ -45,7 +45,7 @@ describe('LibrariesService', () => {
     service = new LibrariesService(prisma as unknown as PrismaService);
   });
 
-  it('crea una librería curada', async () => {
+  it('crea una librerÃ­a curada', async () => {
     prisma.curatedLibrary.create.mockResolvedValue({
       id: 'lib-1',
       ...dto,
@@ -59,7 +59,7 @@ describe('LibrariesService', () => {
     });
   });
 
-  it('lista con búsqueda por nombre/autor y devuelve el total', async () => {
+  it('lista con bÃºsqueda por nombre/autor y devuelve el total', async () => {
     prisma.curatedLibrary.findMany.mockResolvedValue([{ id: 'lib-1' }]);
     prisma.curatedLibrary.count.mockResolvedValue(1);
 
@@ -75,7 +75,7 @@ describe('LibrariesService', () => {
     expect(result).toEqual({ items: [{ id: 'lib-1' }], total: 1 });
   });
 
-  it('usa la paginación por defecto sin filtros', async () => {
+  it('usa la paginaciÃ³n por defecto sin filtros', async () => {
     prisma.curatedLibrary.findMany.mockResolvedValue([]);
     prisma.curatedLibrary.count.mockResolvedValue(0);
 
@@ -92,7 +92,7 @@ describe('LibrariesService', () => {
     await expect(service.create(dto)).rejects.toThrow(ConflictException);
   });
 
-  it('lanza 404 al buscar una librería inexistente', async () => {
+  it('lanza 404 al buscar una librerÃ­a inexistente', async () => {
     prisma.curatedLibrary.findUnique.mockResolvedValue(null);
 
     await expect(service.findOne('faltante')).rejects.toThrow(
@@ -100,7 +100,7 @@ describe('LibrariesService', () => {
     );
   });
 
-  it('actualiza una librería existente', async () => {
+  it('actualiza una librerÃ­a existente', async () => {
     prisma.curatedLibrary.findUnique.mockResolvedValue({
       id: 'lib-1',
       ...dto,
@@ -120,7 +120,7 @@ describe('LibrariesService', () => {
     });
   });
 
-  it('elimina una librería existente', async () => {
+  it('elimina una librerÃ­a existente', async () => {
     prisma.curatedLibrary.findUnique.mockResolvedValue({
       id: 'lib-1',
       ...dto,

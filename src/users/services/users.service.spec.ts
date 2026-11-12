@@ -7,7 +7,7 @@ import {
 import { Prisma, Role } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { UsersService } from './users.service.js';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 
 const uniqueViolation = () =>
   new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
@@ -43,7 +43,7 @@ describe('UsersService', () => {
   });
 
   describe('findAll', () => {
-    it('lista usuarios con filtros, paginación y sin passwordHash', async () => {
+    it('lista usuarios con filtros, paginaciÃ³n y sin passwordHash', async () => {
       prisma.user.findMany.mockResolvedValue([
         { id: TARGET_ID, email: 'a@b.com', name: 'A', role: Role.STUDENT },
       ]);
@@ -73,7 +73,7 @@ describe('UsersService', () => {
       expect(result.total).toBe(1);
     });
 
-    it('usa la paginación por defecto', async () => {
+    it('usa la paginaciÃ³n por defecto', async () => {
       prisma.user.findMany.mockResolvedValue([]);
       prisma.user.count.mockResolvedValue(0);
 
@@ -178,7 +178,7 @@ describe('UsersService', () => {
       });
     });
 
-    it('lanza 409 si el email ya está registrado', async () => {
+    it('lanza 409 si el email ya estÃ¡ registrado', async () => {
       prisma.user.update.mockRejectedValue(uniqueViolation());
 
       await expect(
@@ -188,7 +188,7 @@ describe('UsersService', () => {
   });
 
   describe('changePassword', () => {
-    it('rechaza la contraseña actual incorrecta', async () => {
+    it('rechaza la contraseÃ±a actual incorrecta', async () => {
       const passwordHash = await argon2.hash('Correcta123!', {
         type: argon2.argon2id,
       });
@@ -206,7 +206,7 @@ describe('UsersService', () => {
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
-    it('guarda la nueva contraseña con Argon2id', async () => {
+    it('guarda la nueva contraseÃ±a con Argon2id', async () => {
       const passwordHash = await argon2.hash('Correcta123!', {
         type: argon2.argon2id,
       });
@@ -221,7 +221,7 @@ describe('UsersService', () => {
         newPassword: 'Nueva123456!',
       });
 
-      expect(result).toEqual({ message: 'Contraseña actualizada' });
+      expect(result).toEqual({ message: 'contraseña actualizada' });
       const [[call]] = prisma.user.update.mock.calls as [
         [{ where: { id: string }; data: { passwordHash: string } }],
       ];
@@ -240,7 +240,7 @@ describe('UsersService', () => {
 
       const result = await service.deactivate(TARGET_ID, ADMIN_ID);
 
-      expect(result).toEqual({ message: 'Usuario desactivado', id: TARGET_ID });
+      expect(result).toEqual({ message: 'usuario desactivado', id: TARGET_ID });
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: TARGET_ID },
         data: { isActive: false },
@@ -256,7 +256,7 @@ describe('UsersService', () => {
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
-    it('lanza 403 si el admin intenta desactivarse a sí mismo', async () => {
+    it('lanza 403 si el admin intenta desactivarse a sÃ­ mismo', async () => {
       await expect(service.deactivate(ADMIN_ID, ADMIN_ID)).rejects.toThrow(
         ForbiddenException,
       );

@@ -1,13 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
-import { IsEnum } from 'class-validator';
+import { EnumField } from '../../common/decorators/fields.js';
 
 export class UpdateRoleDto {
-  @ApiProperty({
-    description: 'Nuevo rol del usuario',
+  @EnumField({
     enum: Role,
-    example: Role.TEACHER,
+    example: 'TEACHER',
+    description: 'nuevo rol del usuario',
   })
-  @IsEnum(Role)
   role: Role;
 }

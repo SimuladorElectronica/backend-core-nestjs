@@ -1,14 +1,14 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { CreateLibraryDto } from './dto/create-library.dto.js';
-import { UpdateLibraryDto } from './dto/update-library.dto.js';
-import { ListLibrariesQueryDto } from './dto/list-libraries-query.dto.js';
-import { resolvePagination } from '../common/dto/pagination-query.dto.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { notFound, conflict } from '../../common/errors.js';
+import { isUniqueViolation } from '../../common/prisma-errors.js';
+import { CreateLibraryDto } from '../dto/create-library.dto.js';
+import { UpdateLibraryDto } from '../dto/update-library.dto.js';
+import { ListLibrariesQueryDto } from '../dto/list-libraries-query.dto.js';
+import { resolvePagination } from '../../common/dto/pagination-query.dto.js';
+
+type libraryWhereInput = Prisma.CuratedLibraryWhereInput;
 
 @Injectable()
 export class LibrariesService {
@@ -24,7 +24,7 @@ export class LibrariesService {
   }
 
   async findAll(query: ListLibrariesQueryDto = {}) {
-    const where: Prisma.CuratedLibraryWhereInput = query.q
+    const where: libraryWhereInput = query.q
       ? {
           OR: [
             { name: { contains: query.q, mode: 'insensitive' } },
@@ -54,7 +54,7 @@ export class LibrariesService {
     });
 
     if (!library) {
-      throw new NotFoundException(`No existe la librería "${id}"`);
+      throw notFound(`no existe la librería "${id}"`);
     }
 
     return library;
@@ -78,18 +78,13 @@ export class LibrariesService {
     await this.findOne(id);
     await this.prisma.curatedLibrary.delete({ where: { id } });
 
-    return { message: 'Librería eliminada', id };
+    return { message: 'librería eliminada', id };
   }
 
   /** `name` tiene índice único: 409 en lugar de un 500 */
   private rethrowUniqueViolation(error: unknown, name?: string) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
-      throw new ConflictException(
-        `Ya existe una librería llamada "${name ?? ''}"`,
-      );
+    if (isUniqueViolation(error)) {
+      throw conflict(`ya existe una librería llamada "${name ?? ''}"`);
     }
   }
 }
