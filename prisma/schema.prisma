@@ -47,6 +47,7 @@ model Project {
   circuitData Json // Grafo de componentes 2D, coordenadas, cables y propiedades
   code        String  @db.Text // Código C++
   isPublic    Boolean @default(true)
+  isTemplate  Boolean @default(false) // Plantilla abrible sin sesión desde el simulador
 
   userId String? // Nullable para permitir guardado anónimo sin registro
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -57,6 +58,7 @@ model Project {
   starterForGuides Guide[]      @relation("StarterProject")
   submissions      Submission[]
 
+  @@index([isTemplate])
   @@map("projects")
 }
 

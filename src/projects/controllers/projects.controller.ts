@@ -3,17 +3,20 @@ import {
   Controller,
   Delete,
   Get,
+  Patch,
   Post,
   Put,
   Query,
   Res,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import type { Role } from '@prisma/client';
 import { ProjectsService } from '../services/projects.service.js';
 import { CreateProjectDto } from '../dto/create-project.dto.js';
 import { UpdateProjectDto } from '../dto/update-project.dto.js';
+import { SetTemplateDto } from '../dto/set-template.dto.js';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto.js';
-import { auth, optionalAuth } from '../../common/decorators/auth.js';
+import { auth, info, optionalAuth } from '../../common/decorators/auth.js';
 import {
   currentUser,
   routeParam,
@@ -39,6 +42,19 @@ export class ProjectsReadController {
     );
     setTotalCount(res, total);
     return items;
+  }
+
+  // rutas literales de plantillas antes de `:key` para que no caigan en findByKey
+  @Get('templates')
+  @info('listar las plantillas públicas del simulador (sin sesión)')
+  listTemplates() {
+    return this.projectsService.listTemplates();
+  }
+
+  @Get('templates/:slug')
+  @info('obtener una plantilla pública por su slug (sin sesión)')
+  findTemplate(@routeParam('slug') slug: string) {
+    return this.projectsService.findTemplateBySlug(slug);
   }
 
   @Get(':key')
@@ -73,6 +89,19 @@ export class ProjectsWriteController {
     @currentUser() user: { id: string },
   ) {
     return this.projectsService.update(id, dto, user.id);
+  }
+
+  @Patch(':id/template')
+  @auth(
+    undefined,
+    'marcar o desmarcar un proyecto como plantilla (admin o teacher dueño)',
+  )
+  setTemplate(
+    @uuidParam() id: string,
+    @Body() dto: SetTemplateDto,
+    @currentUser() user: { id: string; role: Role },
+  ) {
+    return this.projectsService.setTemplate(id, dto.isTemplate, user);
   }
 
   @Delete(':id')

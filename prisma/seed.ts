@@ -24,6 +24,7 @@ const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL ?? 'admin@demo.com';
 /** Aula demo con el alumno inscripto y una guía de ejemplo */
 const DEMO_CLASSROOM = '5to Año - Demo';
 const DEMO_STARTER_TITLE = 'Proyecto plantilla - LED parpadeante';
+const DEMO_TEMPLATE_TITLE = 'Proyecto plantilla - Divisor de tensión';
 const DEMO_GUIDE_TITLE = 'Práctica 1 - LED parpadeante';
 const DEMO_GUIDE_INSTRUCTIONS =
   'Conectá un LED al pin 13 con una resistencia de 220 Ω en serie. El LED debe parpadear: 1 segundo encendido, 1 segundo apagado.';
@@ -125,11 +126,57 @@ async function main() {
         code:
           'void setup() {\n  pinMode(13, OUTPUT);\n}\n\nvoid loop() {\n  digitalWrite(13, HIGH);\n  delay(1000);\n  digitalWrite(13, LOW);\n  delay(1000);\n}\n',
         isPublic: false,
+        isTemplate: true,
         userId: teacher.id,
         shareSlug: randomCode(6),
       },
     });
     console.log('+ proyecto plantilla demo');
+  } else if (!starter.isTemplate) {
+    starter = await prisma.project.update({
+      where: { id: starter.id },
+      data: { isTemplate: true },
+    });
+    console.log('= proyecto plantilla demo marcado como plantilla pública');
+  }
+
+  console.log('Seedando plantilla pública extra del simulador...');
+  let template = await prisma.project.findFirst({
+    where: { userId: teacher.id, title: DEMO_TEMPLATE_TITLE },
+  });
+
+  if (!template) {
+    template = await prisma.project.create({
+      data: {
+        title: DEMO_TEMPLATE_TITLE,
+        description: 'Divisor de tensión con dos resistencias (ejemplo de plantilla)',
+        circuitData: {
+          components: [
+            { id: 'v1', type: 'vcc', x: 40, y: 80, value: 5 },
+            { id: 'r1', type: 'resistor', x: 120, y: 80, value: 1000 },
+            { id: 'r2', type: 'resistor', x: 200, y: 80, value: 1000 },
+            { id: 'g1', type: 'gnd', x: 280, y: 80, value: 0 },
+          ],
+          wires: [
+            { from: 'v1:+', to: 'r1:1' },
+            { from: 'r1:2', to: 'r2:1' },
+            { from: 'r2:2', to: 'g1:1' },
+          ],
+        },
+        code: '// divisor de tensión: Vout = Vin * R2 / (R1 + R2)\n',
+        isPublic: false,
+        isTemplate: true,
+        userId: teacher.id,
+        shareSlug: randomCode(6),
+      },
+    });
+    console.log(`+ plantilla pública "${template.title}"`);
+  } else if (!template.isTemplate) {
+    template = await prisma.project.update({
+      where: { id: template.id },
+      data: { isTemplate: true },
+    });
+    console.log(`= plantilla pública "${template.title}" marcada`);
   }
 
   const existingGuide = await prisma.guide.findFirst({

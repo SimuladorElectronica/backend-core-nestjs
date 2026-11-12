@@ -20,7 +20,7 @@ src/
 ├── auth/                  # Registro, login y perfil (JWT)
 │   └── dto/               # register.dto, login.dto
 ├── projects/              # CRUD de esquemáticos (JSONB + shareSlug)
-│   └── dto/               # create-project.dto, update-project.dto
+│   └── dto/               # create-project.dto, update-project.dto, set-template.dto
 ├── libraries/             # Librerías C++ curadas
 │   └── dto/               # create-library.dto, update-library.dto
 ├── guides/                # Guías didácticas (Issue 3.4)
@@ -35,7 +35,7 @@ src/
 │   └── dto/               # update-role.dto, update-me.dto, change-password.dto, list-users-query.dto
 ├── prisma/                # PrismaService (conexión) + PrismaModule global
 │   └── schema.prisma
-│   └── migrations/        # 20261111155757_add_classrooms, 20261111155906_guide_classroom_required
+│   └── migrations/        # init, admin_role, user_is_active, classrooms, guide_classroom_required, 20261112130623_add_project_is_template
 ├── guards/                # JwtAuthGuard, OptionalJwtAuthGuard, RolesGuard
 ├── strategies/            # JwtStrategy (valida el token y carga el usuario)
 ├── decorators/            # @Roles(...) → metadata; @Fields(...), @CurrentUser(...)
@@ -63,7 +63,7 @@ docs/                        # EVALUACION.md, ESTRUCTURA.md (este archivo)
 | Modelo | Campos clave | Relaciones |
 | :--- | :--- | :--- |
 | **User** | `email` único, `passwordHash` (Argon2id), `role` (`ADMIN` \| `TEACHER` \| `STUDENT`, por defecto `STUDENT`), `isActive` (baja lógica) | dueño de `projects`, `guides` (docente) y `submissions` (alumno); también `classroomStudents` |
-| **Project** | `shareSlug` único (6 chars), `circuitData` (JSONB), `code` (C++), `isPublic`, `userId` **nullable** (anónimo) | puede ser plantilla de guías y entrega de alumnos |
+| **Project** | `shareSlug` único (6 chars), `circuitData` (JSONB), `code` (C++), `isPublic`, `isTemplate` (plantilla pública abrible sin sesión; índice), `userId` **nullable** (anónimo) | puede ser plantilla de guías y entrega de alumnos |
 | **Guide** | `title`, `instructions`, `teacherId`, `starterProjectId`, `classroomId` **requerido** | `teacher` → User, `starterProject` → Project, `classroom` → Classroom (FK RESTRICT en borrado), tiene muchas `submissions` |
 | **Submission** | `guideId`, `studentId`, `projectId`, `submittedAt` | entrega de un proyecto propio a una guía |
 | **Classroom** | `name`, `code` único (6 chars), `teacherId` | `teacher` → User; tiene muchas `guides` y muchas inscripciones `ClassroomStudent` |
@@ -116,7 +116,10 @@ Los listados paginados aceptan `?take=` (por defecto 20, máximo 100) y `?skip=`
 | POST | `/projects` | 🔒 opcional | Guarda un esquemático (`title`, `description`, `circuitData` JSONB, `code`, `isPublic`). Con token queda a nombre del usuario; sin token, **anónimo** (`userId` null). Genera un `shareSlug` de 6 caracteres (con reintento ante colisión) y retorna `shareUrl`. **201**. |
 | GET | `/projects` | 🔒 opcional | Con token: lista los proyectos **propios**; sin token: los **públicos** recientes. Paginado con `?take=`/`?skip=` y total en `X-Total-Count`. |
 | GET | `/projects/:key` | 🔓 | Si `key` es un **shareSlug** (6 chars): vista pública (`circuitData` + `code`, sin `userId`); **404** si no existe o es privado. Si `key` es un **UUID**: detalle completo; los proyectos privados solo los ve su dueño (si no: **404**). Cualquier otro formato: **404**. |
+| GET | `/projects/templates` | 🔓 | Lista las **plantillas** (`isTemplate = true`) para el modo invitado del simulador: `{ id, slug, title, description, updatedAt }`, ordenadas por `updatedAt` descendente. `slug` es el `shareSlug`. Nunca expone datos del dueño. |
+| GET | `/projects/templates/:slug` | 🔓 | Detalle público de una plantilla por `slug` (`shareSlug`): `{ id, slug, title, description, circuitData, code, ... }`, sin datos del dueño. **404** si el slug no existe **o si el proyecto no es plantilla** (no se revela su existencia). |
 | PUT | `/projects/:id` | 🔒 | Actualiza los campos enviados de un proyecto **propio**. **404** si no existe; **403** si es anónimo o de otro usuario. |
+| PATCH | `/projects/:id/template` | 🔒 | Marca o desmarca el proyecto como plantilla (`{ isTemplate: boolean }`). Solo **ADMIN** o el **TEACHER dueño**; STUDENT u otro docente: **403** · **401** sin token · **404** si no existe. Las plantillas las abre el simulador sin sesión y se copian en memoria (el original no se modifica). |
 | DELETE | `/projects/:id` | 🔒 | Elimina un proyecto **propio**. **403** si es anónimo o ajeno. **409** si está vinculado a guías o entregas. |
 
 ### Libraries — tag `Libraries`
@@ -205,4 +208,6 @@ npm run prisma:generate  # Regenera el cliente Prisma (tras tocar schema.prisma 
 npm run db:seed          # Carga usuarios demo y librerías
 ```
 
-**Entorno:** archivo `.env` con `DATABASE_URL` (ver `.env.example`) y, opcionalmente, `JWT_SECRET` y `FRONTEND_URL` (para la URL de compartición). Si creás el `.env` después de instalar dependencias, corré `npm run prisma:generate` para que el cliente lo detecte.
+**Entorno:** archivo `.env` con `DATABASE_URL` (ver `.env.example`) y, opcionalmente, `JWT_SECRET`, `FRONTEND_URL` (para la URL de compartición) y `CORS_ORIGINS` (orígenes permitidos separados por comas, ej. dashboard y simulador; sin la variable se refleja el origin solicitante en desarrollo). Si creás el `.env` después de instalar dependencias, corré `npm run prisma:generate` para que el cliente lo detecte.
+
+**Plantillas del simulador:** se siembran dos ejemplos con `npm run db:seed` ("Proyecto plantilla - LED parpadeante" y "Proyecto plantilla - Divisor de tensión") marcados con `isTemplate = true`; se consultan sin token por `/projects/templates` y `/projects/templates/:slug`.

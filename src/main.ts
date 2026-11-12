@@ -6,10 +6,15 @@ import { ValidationPipe } from '@nestjs/common';
 export async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // CORS: permite al frontend (Vite en localhost:5173+, verificado con Origin)
-  // realizar peticiones con Authorization/Content-Type sin preflight bloqueado
+  // CORS: orígenes permitidos vía CORS_ORIGINS (lista separada por comas).
+  // Sin la variable se refleja el origin solicitante (fallback de desarrollo),
+  // para que el simulador y el dashboard puedan consumir los endpoints públicos.
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: true, // refleja el origin solicitante (ej: http://localhost:5174)
+    origin: corsOrigins?.length ? corsOrigins : true,
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
   });
