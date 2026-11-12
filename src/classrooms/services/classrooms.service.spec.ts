@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { ClassroomsService } from './classrooms.service.js';
+import { ClassroomAccessService } from './classroom-access.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 const classroomId = '8c1f4a2e-6b3d-4e8f-a1c7-9d0e2f3b5a61';
@@ -63,7 +64,11 @@ describe('ClassroomsService', () => {
         delete: vi.fn(),
       },
     };
-    service = new ClassroomsService(prisma as unknown as PrismaService);
+    const prismaService = prisma as unknown as PrismaService;
+    service = new ClassroomsService(
+      prismaService,
+      new ClassroomAccessService(prismaService),
+    );
   });
 
   describe('create', () => {

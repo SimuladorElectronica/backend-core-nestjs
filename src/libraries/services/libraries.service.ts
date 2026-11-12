@@ -18,7 +18,7 @@ export class LibrariesService {
     try {
       return await this.prisma.curatedLibrary.create({ data: dto });
     } catch (error) {
-      this.rethrowUniqueViolation(error, dto.name);
+      rethrowUniqueViolation(error, dto.name);
       throw error;
     }
   }
@@ -69,7 +69,7 @@ export class LibrariesService {
         data: dto,
       });
     } catch (error) {
-      this.rethrowUniqueViolation(error, dto.name);
+      rethrowUniqueViolation(error, dto.name);
       throw error;
     }
   }
@@ -81,10 +81,11 @@ export class LibrariesService {
     return { message: 'librería eliminada', id };
   }
 
-  /** `name` tiene índice único: 409 en lugar de un 500 */
-  private rethrowUniqueViolation(error: unknown, name?: string) {
-    if (isUniqueViolation(error)) {
-      throw conflict(`ya existe una librería llamada "${name ?? ''}"`);
-    }
+}
+
+/** `name` tiene índice único: 409 en lugar de un 500 */
+function rethrowUniqueViolation(error: unknown, name?: string) {
+  if (isUniqueViolation(error)) {
+    throw conflict(`ya existe una librería llamada "${name ?? ''}"`);
   }
 }

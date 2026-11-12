@@ -1,9 +1,12 @@
 import 'reflect-metadata';
 import {
+  ProjectsDeleteController,
   ProjectsReadController,
+  ProjectsTemplateController,
   ProjectsWriteController,
 } from './projects.controller.js';
 import { ProjectsService } from '../services/projects.service.js';
+import { ProjectTemplatesService } from '../services/project-templates.service.js';
 import { JwtAuthGuard } from '../../guards/jwt-auth.guard.js';
 import { OptionalJwtAuthGuard } from '../../guards/optional-jwt-auth.guard.js';
 
@@ -12,12 +15,19 @@ const GUARDS_METADATA = '__guards__';
 describe('ProjectsController', () => {
   let read: ProjectsReadController;
   let write: ProjectsWriteController;
+  let template: ProjectsTemplateController;
+  let removeProject: ProjectsDeleteController;
   let service: {
     list: ReturnType<typeof vi.fn>;
     findByKey: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
+  };
+  let templates: {
+    listTemplates: ReturnType<typeof vi.fn>;
+    findTemplateBySlug: ReturnType<typeof vi.fn>;
+    setTemplate: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -28,8 +38,24 @@ describe('ProjectsController', () => {
       update: vi.fn(),
       remove: vi.fn(),
     };
-    read = new ProjectsReadController(service as unknown as ProjectsService);
-    write = new ProjectsWriteController(service as unknown as ProjectsService);
+    templates = {
+      listTemplates: vi.fn(),
+      findTemplateBySlug: vi.fn(),
+      setTemplate: vi.fn(),
+    };
+    read = new ProjectsReadController(
+      service as unknown as ProjectsService,
+      templates as unknown as ProjectTemplatesService,
+    );
+    write = new ProjectsWriteController(
+      service as unknown as ProjectsService,
+    );
+    template = new ProjectsTemplateController(
+      templates as unknown as ProjectTemplatesService,
+    );
+    removeProject = new ProjectsDeleteController(
+      service as unknown as ProjectsService,
+    );
   });
 
   describe('GET /projects', () => {
@@ -125,17 +151,48 @@ describe('ProjectsController', () => {
 
   describe('DELETE /projects/:id', () => {
     it('exige JWT y delega la eliminación con el id autenticado', async () => {
-      const guards = Reflect.getMetadata(GUARDS_METADATA, write.remove) as unknown[];
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        removeProject.remove,
+      ) as unknown[];
       expect(guards).toContain(JwtAuthGuard);
 
       service.remove.mockResolvedValue({ message: 'x', id: 'p-1' });
 
-      await write.remove('3f1c8f9e-2a41-4f6b-9d5e-7c2b1a0f4e8d', { id: 'user-1' });
+      await removeProject.remove('3f1c8f9e-2a41-4f6b-9d5e-7c2b1a0f4e8d', {
+        id: 'user-1',
+      });
 
       expect(service.remove).toHaveBeenCalledWith(
         '3f1c8f9e-2a41-4f6b-9d5e-7c2b1a0f4e8d',
         'user-1',
       );
+    });
+  });
+
+  describe('plantillas', () => {
+    it('GET /projects/templates delega en el servicio de plantillas', async () => {
+      templates.listTemplates.mockResolvedValue([{ slug: 'abc123' }]);
+
+      await expect(read.listTemplates()).resolves.toEqual([{ slug: 'abc123' }]);
+      expect(templates.listTemplates).toHaveBeenCalled();
+    });
+
+    it('GET /projects/templates/:slug delega con el slug', async () => {
+      templates.findTemplateBySlug.mockResolvedValue({ slug: 'abc123' });
+
+      await read.findTemplate('abc123');
+
+      expect(templates.findTemplateBySlug).toHaveBeenCalledWith('abc123');
+    });
+
+    it('PATCH /projects/:id/template delega en el servicio de plantillas', async () => {
+      templates.setTemplate.mockResolvedValue({ id: 'p-1' });
+      const requester = { id: 'user-1', role: 'TEACHER' as never };
+
+      await template.setTemplate('p-1', { isTemplate: true }, requester);
+
+      expect(templates.setTemplate).toHaveBeenCalledWith('p-1', true, requester);
     });
   });
 });

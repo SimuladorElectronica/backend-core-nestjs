@@ -12,6 +12,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import type { Role } from '@prisma/client';
 import { ProjectsService } from '../services/projects.service.js';
+import { ProjectTemplatesService } from '../services/project-templates.service.js';
 import { CreateProjectDto } from '../dto/create-project.dto.js';
 import { UpdateProjectDto } from '../dto/update-project.dto.js';
 import { SetTemplateDto } from '../dto/set-template.dto.js';
@@ -27,7 +28,10 @@ import { setTotalCount, type totalCountHeader } from '../../common/total-count.j
 @ApiTags('projects')
 @Controller('projects')
 export class ProjectsReadController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly templatesService: ProjectTemplatesService,
+  ) {}
 
   @Get()
   @optionalAuth('listar proyectos propios o recientes públicos')
@@ -48,13 +52,13 @@ export class ProjectsReadController {
   @Get('templates')
   @info('listar las plantillas públicas del simulador (sin sesión)')
   listTemplates() {
-    return this.projectsService.listTemplates();
+    return this.templatesService.listTemplates();
   }
 
   @Get('templates/:slug')
   @info('obtener una plantilla pública por su slug (sin sesión)')
   findTemplate(@routeParam('slug') slug: string) {
-    return this.projectsService.findTemplateBySlug(slug);
+    return this.templatesService.findTemplateBySlug(slug);
   }
 
   @Get(':key')
@@ -90,6 +94,13 @@ export class ProjectsWriteController {
   ) {
     return this.projectsService.update(id, dto, user.id);
   }
+}
+
+/** Marca o desmarca plantillas: se separa del CRUD para acotar dependencias. */
+@ApiTags('projects')
+@Controller('projects')
+export class ProjectsTemplateController {
+  constructor(private readonly templatesService: ProjectTemplatesService) {}
 
   @Patch(':id/template')
   @auth(
@@ -101,8 +112,14 @@ export class ProjectsWriteController {
     @Body() dto: SetTemplateDto,
     @currentUser() user: { id: string; role: Role },
   ) {
-    return this.projectsService.setTemplate(id, dto.isTemplate, user);
+    return this.templatesService.setTemplate(id, dto.isTemplate, user);
   }
+}
+
+@ApiTags('projects')
+@Controller('projects')
+export class ProjectsDeleteController {
+  constructor(private readonly projectsService: ProjectsService) {}
 
   @Delete(':id')
   @auth(undefined, 'eliminar un proyecto propio (requiere sesión)')

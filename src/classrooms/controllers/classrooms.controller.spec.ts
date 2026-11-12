@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { Role } from '@prisma/client';
 import {
+  ClassroomsMembershipController,
   ClassroomsReadController,
   ClassroomsWriteController,
 } from './classrooms.controller.js';
@@ -17,6 +18,7 @@ const student = { id: 'student-1', role: Role.STUDENT };
 describe('ClassroomsController', () => {
   let read: ClassroomsReadController;
   let write: ClassroomsWriteController;
+  let membership: ClassroomsMembershipController;
   let service: {
     findAll: ReturnType<typeof vi.fn>;
     findOne: ReturnType<typeof vi.fn>;
@@ -41,6 +43,9 @@ describe('ClassroomsController', () => {
     };
     read = new ClassroomsReadController(service as unknown as ClassroomsService);
     write = new ClassroomsWriteController(service as unknown as ClassroomsService);
+    membership = new ClassroomsMembershipController(
+      service as unknown as ClassroomsService,
+    );
   });
 
   const guardsOf = (handler: unknown): unknown[] =>
@@ -103,10 +108,10 @@ describe('ClassroomsController', () => {
   });
 
   it('POST /classrooms/:id/regenerate-code exige JWT y delega', async () => {
-    expect(guardsOf(write.regenerateCode)).toContain(JwtAuthGuard);
+    expect(guardsOf(membership.regenerateCode)).toContain(JwtAuthGuard);
     service.regenerateCode.mockResolvedValue({ id: 'c-1', code: 'nuevo1' });
 
-    await expect(write.regenerateCode('c-1', teacher)).resolves.toEqual({
+    await expect(membership.regenerateCode('c-1', teacher)).resolves.toEqual({
       id: 'c-1',
       code: 'nuevo1',
     });
@@ -114,19 +119,19 @@ describe('ClassroomsController', () => {
   });
 
   it('DELETE /classrooms/:id/students/:studentId exige JWT y delega', async () => {
-    expect(guardsOf(write.removeMember)).toContain(JwtAuthGuard);
+    expect(guardsOf(membership.removeMember)).toContain(JwtAuthGuard);
     service.removeMember.mockResolvedValue({ classroomId: 'c-1' });
 
-    await write.removeMember('c-1', 'student-1', teacher);
+    await membership.removeMember('c-1', 'student-1', teacher);
 
     expect(service.removeMember).toHaveBeenCalledWith('c-1', 'student-1', teacher);
   });
 
   it('DELETE /classrooms/:id exige JWT y delega', async () => {
-    expect(guardsOf(write.remove)).toContain(JwtAuthGuard);
+    expect(guardsOf(membership.remove)).toContain(JwtAuthGuard);
     service.remove.mockResolvedValue({ id: 'c-1' });
 
-    await write.remove('c-1', teacher);
+    await membership.remove('c-1', teacher);
 
     expect(service.remove).toHaveBeenCalledWith('c-1', teacher);
   });

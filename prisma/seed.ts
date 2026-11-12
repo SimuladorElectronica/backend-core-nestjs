@@ -62,6 +62,41 @@ const LIBRARIES = [
   },
 ];
 
+const starterProjectData = (teacherId: string) => ({
+  title: DEMO_STARTER_TITLE,
+  description: 'Proyecto plantilla para la guía demo',
+  circuitData: { components: [{ id: 'r1', type: 'resistor' }], wires: [] },
+  code:
+    'void setup() {\n  pinMode(13, OUTPUT);\n}\n\nvoid loop() {\n  digitalWrite(13, HIGH);\n  delay(1000);\n  digitalWrite(13, LOW);\n  delay(1000);\n}\n',
+  isPublic: false,
+  isTemplate: true,
+  userId: teacherId,
+  shareSlug: randomCode(6),
+});
+
+const publicTemplateData = (teacherId: string) => ({
+  title: DEMO_TEMPLATE_TITLE,
+  description: 'Divisor de tensión con dos resistencias (ejemplo de plantilla)',
+  circuitData: {
+    components: [
+      { id: 'v1', type: 'vcc', x: 40, y: 80, value: 5 },
+      { id: 'r1', type: 'resistor', x: 120, y: 80, value: 1000 },
+      { id: 'r2', type: 'resistor', x: 200, y: 80, value: 1000 },
+      { id: 'g1', type: 'gnd', x: 280, y: 80, value: 0 },
+    ],
+    wires: [
+      { from: 'v1:+', to: 'r1:1' },
+      { from: 'r1:2', to: 'r2:1' },
+      { from: 'r2:2', to: 'g1:1' },
+    ],
+  },
+  code: '// divisor de tensión: Vout = Vin * R2 / (R1 + R2)\n',
+  isPublic: false,
+  isTemplate: true,
+  userId: teacherId,
+  shareSlug: randomCode(6),
+});
+
 async function upsertUser(email: string, name: string, role: Role) {
   const existing = await prisma.user.findUnique({ where: { email } });
 
@@ -82,21 +117,26 @@ async function upsertUser(email: string, name: string, role: Role) {
   return user;
 }
 
-async function main() {
+async function seedUsers() {
   console.log('Seedando usuarios de prueba...');
 
   await upsertUser(ADMIN_EMAIL, 'Administrador demo', Role.ADMIN);
   const teacher = await upsertUser(TEACHER_EMAIL, 'Docente demo', Role.TEACHER);
   const student = await upsertUser(STUDENT_EMAIL, 'Alumno demo', Role.STUDENT);
 
+  return { teacher, student };
+}
+
+async function seedClassroom(teacherId: string, studentId: string) {
   console.log('Seedando aula demo...');
+
   let classroom = await prisma.classroom.findFirst({
-    where: { teacherId: teacher.id, name: DEMO_CLASSROOM },
+    where: { teacherId, name: DEMO_CLASSROOM },
   });
 
   if (!classroom) {
     classroom = await prisma.classroom.create({
-      data: { name: DEMO_CLASSROOM, code: randomCode(6), teacherId: teacher.id },
+      data: { name: DEMO_CLASSROOM, code: randomCode(6), teacherId },
     });
     console.log(`+ aula "${classroom.name}" (código: ${classroom.code})`);
   } else {
@@ -105,31 +145,24 @@ async function main() {
 
   await prisma.classroomStudent.upsert({
     where: {
-      classroomId_studentId: { classroomId: classroom.id, studentId: student.id },
+      classroomId_studentId: { classroomId: classroom.id, studentId },
     },
     update: {},
-    create: { classroomId: classroom.id, studentId: student.id },
+    create: { classroomId: classroom.id, studentId },
   });
   console.log(`+ alumno ${STUDENT_EMAIL} inscripto en el aula demo`);
 
-  console.log('Seedando guía demo...');
+  return classroom;
+}
+
+async function seedStarterProject(teacherId: string) {
   let starter = await prisma.project.findFirst({
-    where: { userId: teacher.id, title: DEMO_STARTER_TITLE },
+    where: { userId: teacherId, title: DEMO_STARTER_TITLE },
   });
 
   if (!starter) {
     starter = await prisma.project.create({
-      data: {
-        title: DEMO_STARTER_TITLE,
-        description: 'Proyecto plantilla para la guía demo',
-        circuitData: { components: [{ id: 'r1', type: 'resistor' }], wires: [] },
-        code:
-          'void setup() {\n  pinMode(13, OUTPUT);\n}\n\nvoid loop() {\n  digitalWrite(13, HIGH);\n  delay(1000);\n  digitalWrite(13, LOW);\n  delay(1000);\n}\n',
-        isPublic: false,
-        isTemplate: true,
-        userId: teacher.id,
-        shareSlug: randomCode(6),
-      },
+      data: starterProjectData(teacherId),
     });
     console.log('+ proyecto plantilla demo');
   } else if (!starter.isTemplate) {
@@ -140,35 +173,19 @@ async function main() {
     console.log('= proyecto plantilla demo marcado como plantilla pública');
   }
 
+  return starter;
+}
+
+async function seedPublicTemplate(teacherId: string) {
   console.log('Seedando plantilla pública extra del simulador...');
+
   let template = await prisma.project.findFirst({
-    where: { userId: teacher.id, title: DEMO_TEMPLATE_TITLE },
+    where: { userId: teacherId, title: DEMO_TEMPLATE_TITLE },
   });
 
   if (!template) {
     template = await prisma.project.create({
-      data: {
-        title: DEMO_TEMPLATE_TITLE,
-        description: 'Divisor de tensión con dos resistencias (ejemplo de plantilla)',
-        circuitData: {
-          components: [
-            { id: 'v1', type: 'vcc', x: 40, y: 80, value: 5 },
-            { id: 'r1', type: 'resistor', x: 120, y: 80, value: 1000 },
-            { id: 'r2', type: 'resistor', x: 200, y: 80, value: 1000 },
-            { id: 'g1', type: 'gnd', x: 280, y: 80, value: 0 },
-          ],
-          wires: [
-            { from: 'v1:+', to: 'r1:1' },
-            { from: 'r1:2', to: 'r2:1' },
-            { from: 'r2:2', to: 'g1:1' },
-          ],
-        },
-        code: '// divisor de tensión: Vout = Vin * R2 / (R1 + R2)\n',
-        isPublic: false,
-        isTemplate: true,
-        userId: teacher.id,
-        shareSlug: randomCode(6),
-      },
+      data: publicTemplateData(teacherId),
     });
     console.log(`+ plantilla pública "${template.title}"`);
   } else if (!template.isTemplate) {
@@ -178,9 +195,17 @@ async function main() {
     });
     console.log(`= plantilla pública "${template.title}" marcada`);
   }
+}
+
+async function seedGuide(
+  teacherId: string,
+  classroomId: string,
+  starterProjectId: string,
+) {
+  console.log('Seedando guía demo...');
 
   const existingGuide = await prisma.guide.findFirst({
-    where: { classroomId: classroom.id, title: DEMO_GUIDE_TITLE },
+    where: { classroomId, title: DEMO_GUIDE_TITLE },
   });
 
   if (!existingGuide) {
@@ -188,17 +213,20 @@ async function main() {
       data: {
         title: DEMO_GUIDE_TITLE,
         instructions: DEMO_GUIDE_INSTRUCTIONS,
-        starterProjectId: starter.id,
-        teacherId: teacher.id,
-        classroomId: classroom.id,
+        starterProjectId,
+        teacherId,
+        classroomId,
       },
     });
     console.log('+ guía demo');
   } else {
     console.log('= guía demo ya existe');
   }
+}
 
+async function seedLibraries() {
   console.log('Seedando librerías curadas...');
+
   for (const library of LIBRARIES) {
     const existing = await prisma.curatedLibrary.findUnique({
       where: { name: library.name },
@@ -213,12 +241,26 @@ async function main() {
       `${existing ? '=' : '+'} librería ${library.name}${existing ? ' ya existe, se omite' : ''}`,
     );
   }
+}
 
+function printSummary(classroom: { name: string; code: string }) {
   console.log('\nSeed completado.');
   console.log(`  Admin: ${ADMIN_EMAIL} / ${PASSWORD}`);
   console.log(`  Teacher: ${TEACHER_EMAIL} / ${PASSWORD}`);
   console.log(`  Student: ${STUDENT_EMAIL} / ${PASSWORD}`);
   console.log(`  Aula demo: "${DEMO_CLASSROOM}" · código: ${classroom.code}`);
+}
+
+async function main() {
+  const { teacher, student } = await seedUsers();
+  const classroom = await seedClassroom(teacher.id, student.id);
+  const starter = await seedStarterProject(teacher.id);
+
+  await seedPublicTemplate(teacher.id);
+  await seedGuide(teacher.id, classroom.id, starter.id);
+  await seedLibraries();
+
+  printSummary(classroom);
 }
 
 main()

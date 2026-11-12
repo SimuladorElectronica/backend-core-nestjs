@@ -64,6 +64,17 @@ export class ClassroomsWriteController {
   join(@Body() dto: JoinClassroomDto, @currentUser() user: { id: string }) {
     return this.classroomsService.join(dto.code, user.id);
   }
+}
+
+/**
+ * Operaciones de administración del aula (código de unión, alumnos y borrado).
+ * Se separa del alta/inscripción para mantener cada controlador con una
+ * responsabilidad acotada.
+ */
+@ApiTags('classrooms')
+@Controller('classrooms')
+export class ClassroomsMembershipController {
+  constructor(private readonly classroomsService: ClassroomsService) {}
 
   @Post(':id/regenerate-code')
   @auth(undefined, 'regenerar el código del aula (docente dueño o admin)')

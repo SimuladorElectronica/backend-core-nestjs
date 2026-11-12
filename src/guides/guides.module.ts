@@ -5,12 +5,13 @@ import {
   GuidesWriteController,
 } from './controllers/guides.controller.js';
 import { GuidesService } from './services/guides.service.js';
+import { GuideAccessService } from './services/guide-access.service.js';
 
 @Module({
   // AuthModule exporta JwtModule, necesario para resolver los guards JWT
   imports: [AuthModule],
   controllers: [GuidesReadController, GuidesWriteController],
-  providers: [GuidesService],
-  exports: [GuidesService],
+  providers: [GuidesService, GuideAccessService],
+  exports: [GuidesService, GuideAccessService],
 })
 export class GuidesModule {}

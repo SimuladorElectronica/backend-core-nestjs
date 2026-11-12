@@ -1,6 +1,7 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { GuidesService } from './guides.service.js';
+import { GuideAccessService } from './guide-access.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateGuideDto } from '../dto/create-guide.dto.js';
 
@@ -54,7 +55,8 @@ describe('GuidesService', () => {
         findUnique: vi.fn(),
       },
     };
-    service = new GuidesService(prisma as unknown as PrismaService);
+    const prismaService = prisma as unknown as PrismaService;
+    service = new GuidesService(prismaService, new GuideAccessService(prismaService));
   });
 
   describe('create', () => {
