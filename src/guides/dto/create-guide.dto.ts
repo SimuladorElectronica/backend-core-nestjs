@@ -1,31 +1,31 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator';
+import { TextField, UuidField } from '../../common/decorators/fields.js';
 
 export class CreateGuideDto {
-  @ApiProperty({
-    description: 'Título de la guía didáctica',
-    example: 'Práctica 1 - LED parpadeante',
+  @TextField({
+    description: 'título de la guía didáctica',
+    example: 'práctica 1 - led parpadeante',
+    maxLength: 200,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(200)
   title: string;
 
-  @ApiProperty({
-    description: 'Instrucciones que debe seguir el alumno',
+  @TextField({
+    description: 'instrucciones que debe seguir el alumno',
     example:
-      'Conectá un LED al pin 13 con resistencia de 220Ω y hacélo parpadear cada segundo.',
+      'conectá un led al pin 13 con resistencia de 220 ohm y hacélo parpadear cada segundo',
+    maxLength: 10000,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(10000)
   instructions: string;
 
-  @ApiProperty({
-    description:
-      'UUID del proyecto plantilla (starter) sobre el cual el alumno parte',
-    example: '3f1c8f9e-2a41-4f6b-9d5e-7c2b1a0f4e8d',
+  @UuidField({
+    example: 'uuid del proyecto plantilla',
+    description: 'uuid del proyecto starter sobre el cual parte el alumno',
   })
-  @IsUUID()
   starterProjectId: string;
+
+  @UuidField({
+    example: 'uuid del aula',
+    description:
+      'uuid del aula a la que pertenece la guía; solo el docente dueño del aula puede usarla',
+  })
+  classroomId: string;
 }

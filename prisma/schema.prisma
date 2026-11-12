@@ -30,9 +30,11 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 
-  projects    Project[]
-  guides      Guide[]      @relation("TeacherGuides")
-  submissions Submission[]
+  projects     Project[]
+  guides       Guide[]            @relation("TeacherGuides")
+  submissions  Submission[]
+  classrooms   Classroom[]        @relation("TeacherClassrooms")
+  enrollments  ClassroomStudent[]
 
   @@map("users")
 }
@@ -58,6 +60,35 @@ model Project {
   @@map("projects")
 }
 
+model Classroom {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique // Código de unión para inscripción de alumnos (6 chars)
+
+  teacherId String
+  teacher   User     @relation("TeacherClassrooms", fields: [teacherId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  guides   Guide[]
+  students ClassroomStudent[]
+
+  @@map("classrooms")
+}
+
+model ClassroomStudent {
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  joinedAt DateTime @default(now())
+
+  @@id([classroomId, studentId])
+  @@map("classroom_students")
+}
+
 model Guide {
   id           String @id @default(uuid())
   title        String
@@ -68,6 +99,9 @@ model Guide {
 
   starterProjectId String
   starterProject   Project @relation("StarterProject", fields: [starterProjectId], references: [id])
+
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Restrict)
 
   createdAt   DateTime     @default(now())
   submissions Submission[]

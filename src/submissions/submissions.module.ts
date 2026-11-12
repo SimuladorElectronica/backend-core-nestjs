@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
-import { SubmissionsController } from './submissions.controller.js';
-import { SubmissionsService } from './submissions.service.js';
+import {
+  SubmissionsReadController,
+  SubmissionsWriteController,
+} from './controllers/submissions.controller.js';
+import { SubmissionsService } from './services/submissions.service.js';
 
 @Module({
   // AuthModule exporta JwtModule, necesario para resolver los guards JWT
   imports: [AuthModule],
-  controllers: [SubmissionsController],
+  controllers: [SubmissionsReadController, SubmissionsWriteController],
   providers: [SubmissionsService],
   exports: [SubmissionsService],
 })
